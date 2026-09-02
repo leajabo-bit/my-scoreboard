@@ -75,17 +75,13 @@
   .round-tabs{padding:0 0 10px;}
   .round-tab-btn{padding:6px 12px;font-size:12px;}
   .round-view{min-height:20px;}
-  .bracket{display:flex;align-items:flex-start;overflow:auto;max-height:65vh;padding:4px 4px 14px;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;}
-  .bracket-col{display:flex;flex-direction:column;flex:0 0 148px;margin-right:16px;}
-  .bracket-col:last-child{margin-right:4px;}
-  .bracket-col-title{font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);text-align:center;margin-bottom:8px;}
-  .bracket-match{margin-bottom:0;}
-  .bm{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12px;}
+  .bracket-list{display:flex;flex-direction:column;gap:8px;}
+  .bm{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;}
   .bm.tracked{border-color:var(--highlight-border);background:var(--highlight);}
   .bm-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .bm-winner{font-weight:700;}
   .bm-tbd{color:var(--muted);font-style:italic;}
-  .bm-score,.bm-time{font-size:10.5px;color:var(--muted);margin-top:3px;}
+  .bm-score,.bm-time{font-size:11.5px;color:var(--muted);margin-top:3px;}
 </style>
 </head>
 <body>
@@ -494,22 +490,64 @@ function extractSeedMap(mainComps){
   });
   return map;
 }
-// Standard recursive tournament seeding order: seed 1 at slot 0, seed 2 at the
-// last slot, each half built so top seeds only meet in later rounds.
-function seedSlotTemplate(size){
-  let seeds = [1];
-  while(seeds.length < size){
-    const n = seeds.length * 2;
-    const next = [];
-    seeds.forEach(s => { next.push(s); next.push(n + 1 - s); });
-    seeds = next;
-  }
-  return seeds;
-}
 function winnerNormName(m){
   if(!m) return null;
   const w = m.competitors.find(c => c.winner);
   return w && w.athlete ? normalize(w.athlete.displayName) : null;
+}
+// Round 1 has no structured "slot" field, so its true sibling pairs (which two
+// Round-1 matches feed the same Round-2 match) have to be recovered from real
+// data: for every completed Round-1 match, its winner's name identifies exactly
+// which Round-2 match it feeds. Two Round-1 matches that resolve to the SAME
+// Round-2 match are a confirmed real pair — this is authoritative, unlike
+// guessing from seeds, which only anchors the ~32 matches that contain a seed
+// and leaves the other ~32 (unseeded-vs-unseeded) pairs pure guesswork.
+function buildRound1Positions(r1Matches, r2Matches){
+  const numR1 = r1Matches.length;
+  const positions = new Array(numR1).fill(null);
+  const used = new Set();
+  if(r2Matches && r2Matches.length){
+    const groupByR2 = new Map();
+    r1Matches.forEach((m, i) => {
+      if(!m.status.type.completed) return;
+      const wname = winnerNormName(m);
+      if(!wname) return;
+      const r2Idx = r2Matches.findIndex(p => p.competitors.some(co => co.athlete && normalize(co.athlete.displayName) === wname));
+      if(r2Idx === -1) return;
+      if(!groupByR2.has(r2Idx)) groupByR2.set(r2Idx, []);
+      groupByR2.get(r2Idx).push(i);
+    });
+    let slot = 0;
+    // Confirmed pairs first (both siblings already completed and linked).
+    groupByR2.forEach(members => {
+      if(members.length === 2){
+        positions[slot] = r1Matches[members[0]];
+        positions[slot+1] = r1Matches[members[1]];
+        used.add(members[0]); used.add(members[1]);
+        slot += 2;
+      }
+    });
+    // One side confirmed, sibling not finished yet — place the known one, leave
+    // its neighbor slot for the leftover fill below.
+    const openSlots = [];
+    groupByR2.forEach(members => {
+      if(members.length === 1 && !used.has(members[0])){
+        positions[slot] = r1Matches[members[0]];
+        used.add(members[0]);
+        openSlots.push(slot + 1);
+        slot += 2;
+      }
+    });
+    const leftovers = r1Matches.filter((m,i) => !used.has(i));
+    let li = 0;
+    openSlots.forEach(s => { positions[s] = leftovers[li++] || null; });
+    for(let s = 0; s < numR1; s++){
+      if(!positions[s]) positions[s] = leftovers[li++] || null;
+    }
+  } else {
+    r1Matches.forEach((m,i) => { positions[i] = m; });
+  }
+  return positions;
 }
 // Builds rounds[0..n] where each round is an array of API match objects (or null)
 // positioned so that a match's two children are always at [2j, 2j+1] of the
@@ -521,22 +559,7 @@ function buildBracketRounds(mainComps, orderLabels){
   const numR1 = r1Matches.length;
   if(numR1 < 2 || (numR1 & (numR1 - 1)) !== 0) return null; // needs a clean power-of-two draw
 
-  const seedMap = extractSeedMap(mainComps);
-  const template = seedSlotTemplate(numR1 * 2);
-  const positions = new Array(numR1).fill(null);
-  const used = new Set();
-  for(let slot = 0; slot < template.length; slot++){
-    const seed = template[slot];
-    const matchIdx = Math.floor(slot / 2);
-    if(positions[matchIdx]) continue;
-    const idx = r1Matches.findIndex((m,i) => !used.has(i) && m.competitors.some(co => co.athlete && seedMap[normalize(co.athlete.displayName)] === seed));
-    if(idx !== -1){ positions[matchIdx] = r1Matches[idx]; used.add(idx); }
-  }
-  const leftovers = r1Matches.filter((m,i) => !used.has(i));
-  let li = 0;
-  for(let j = 0; j < numR1; j++){
-    if(!positions[j]) positions[j] = leftovers[li++] || null;
-  }
+  const positions = buildRound1Positions(r1Matches, byRound[orderLabels[1]] || []);
 
   const rounds = [positions];
   let prev = positions;
@@ -589,20 +612,23 @@ function renderBracket(comps, containerEl){
   const rounds = buildBracketRounds(mainComps, order);
   if(!rounds){ renderRoundsTabbed(comps, containerEl); return; }
   const seedMap = extractSeedMap(mainComps);
-  const MATCH_H = 58;
-  const MAX_GAP_EXP = 4; // cap exponential spacing beyond this so late rounds don't need huge vertical scrolling
-  let html = '<div class="bracket">';
-  rounds.forEach((roundMatches, r) => {
-    const gap = MATCH_H * (Math.pow(2, Math.min(r, MAX_GAP_EXP)) - 1);
-    html += '<div class="bracket-col"><div class="bracket-col-title">' + esc(order[r] || '') + '</div>';
-    roundMatches.forEach((m, j) => {
-      const marginTop = j === 0 ? gap / 2 : gap;
-      html += '<div class="bracket-match" style="margin-top:' + marginTop + 'px;">' + bracketMatchHtml(m, seedMap) + '</div>';
-    });
-    html += '</div>';
+  const tabsHtml = order.map((label,i) =>
+    '<button class="tab-btn round-tab-btn" data-round="' + i + '">' + esc(label) + '</button>'
+  ).join('');
+  containerEl.innerHTML = '<div class="tabs round-tabs">' + tabsHtml + '</div><div class="round-view bracket-list"></div>';
+  const view = containerEl.querySelector('.round-view');
+  function renderRound(idx){
+    containerEl.querySelectorAll('.round-tab-btn').forEach((b,i) => b.classList.toggle('active', i === idx));
+    view.innerHTML = rounds[idx].map(m => bracketMatchHtml(m, seedMap)).join('');
+  }
+  containerEl.querySelectorAll('.round-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => renderRound(parseInt(btn.dataset.round, 10)));
   });
-  html += '</div>';
-  containerEl.innerHTML = html;
+  let defaultIdx = 0;
+  rounds.forEach((roundMatches, i) => {
+    if(roundMatches.some(m => m && m.status.type.state !== 'pre')) defaultIdx = i;
+  });
+  renderRound(defaultIdx);
 }
 async function loadFullDraw(slam, containerEl){
   containerEl.innerHTML = '<div class="empty-note"><span class="spinner"></span> Loading full draw…</div>';
