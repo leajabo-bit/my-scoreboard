@@ -187,11 +187,11 @@ const PL_CLUBS = [
 // Base ESPN tournament ids (stable across years) + a date known to fall inside that
 // year's tournament window, used to look the event up via ?dates=YYYYMMDD.
 const SLAMS_2026 = [
-  {id: 154, name: 'Australian Open', probeDate: '20260119'},
-  {id: 172, name: 'Roland Garros',   probeDate: '20260525'},
-  {id: 188, name: 'Wimbledon',       probeDate: '20260705'},
-  {id: 189, name: 'US Open',         probeDate: '20260830'},
-  {id: 339, name: 'ATP Finals',      probeDate: '20261115'}
+  {id: 154, name: 'Australian Open', probeDate: '20260119', wikiTitle: "2026 Australian Open – Men's singles"},
+  {id: 172, name: 'Roland Garros',   probeDate: '20260525', wikiTitle: "2026 French Open – Men's singles"},
+  {id: 188, name: 'Wimbledon',       probeDate: '20260705', wikiTitle: "2026 Wimbledon Championships – Men's singles"},
+  {id: 189, name: 'US Open',         probeDate: '20260830', wikiTitle: "2026 US Open – Men's singles"},
+  {id: 339, name: 'ATP Finals',      probeDate: '20261115', wikiTitle: null}
 ];
 const STAGE_LABELS = {
   'league-phase': 'League Phase',
@@ -519,6 +519,54 @@ function matchOwnSeed(m, seedMap){
   });
   return best;
 }
+// ESPN has no field for a match's real position on the official draw sheet, and
+// beyond the top 3-4 seeds that position is decided by a random draw each year
+// (not by any formula) — so the only way to render the *actual* published
+// bracket is to read it from somewhere that has it. Wikipedia's Grand Slam
+// singles articles embed the real draw as structured template parameters
+// (e.g. "16TeamBracket-Compact-Tennis5" with RD1-team01..16 in true top-to-
+// bottom order for each of the 8 sixteen-player sections), so we pull the
+// Round 1 name order from there and only fall back to the seed-based guess
+// if that page isn't available yet (e.g. a not-yet-drawn tournament).
+function cleanWikiName(s){
+  if(!s) return null;
+  let t = s;
+  t = t.replace(/\{\{flagicon\|[^}]*\}\}/gi, '');
+  t = t.replace(/\{\{[^}]*\}\}/g, '');
+  t = t.replace(/'''/g, '');
+  t = t.replace(/\[\[([^\]|]*)\|[^\]]*\]\]/g, '$1'); // [[Page|Display]] -> Page (the fuller name)
+  t = t.replace(/\[\[([^\]]*)\]\]/g, '$1');
+  t = t.replace(/\s*\([^)]*\)\s*$/, ''); // strip a trailing disambiguator, e.g. "(tennis)"
+  t = t.trim();
+  return t || null;
+}
+async function fetchWikiRound1Order(wikiTitle, numR1){
+  if(!wikiTitle) return null;
+  try{
+    const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/html/' + encodeURIComponent(wikiTitle));
+    if(!res.ok) return null;
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const sections = [...doc.querySelectorAll('table[data-mw]')]
+      .map(t => {
+        try{ return JSON.parse(t.getAttribute('data-mw')).parts[0].template.params; }
+        catch(e){ return null; }
+      })
+      .filter(params => params && Object.keys(params).filter(k => /^RD1-team\d+$/.test(k)).length === 16);
+    const expectedSections = numR1 / 8; // 8 sections of 16 players cover a 128-player (64-match) draw
+    if(sections.length !== expectedSections) return null;
+    const names = [];
+    sections.forEach(params => {
+      for(let i = 1; i <= 16; i++){
+        const key = 'RD1-team' + String(i).padStart(2, '0');
+        names.push(cleanWikiName(params[key] ? params[key].wt : null));
+      }
+    });
+    return names.length === numR1 * 2 ? names : null;
+  }catch(e){
+    return null;
+  }
+}
 // Round 1 has no structured "slot" field, so its true sibling pairs (which two
 // Round-1 matches feed the same Round-2 match) have to be recovered from real
 // data: for every completed Round-1 match, its winner's name identifies exactly
@@ -529,8 +577,28 @@ function matchOwnSeed(m, seedMap){
 // Once pairs are known, seeds are used only to decide WHERE each pair sits
 // (so seed 1 ends up at the very top and seed 2 anchors the bottom half, per
 // the standard convention) and which side of the pair renders first.
-function buildRound1Positions(r1Matches, r2Matches, seedMap){
+// If we have the real published order (from Wikipedia), use it directly: each
+// consecutive pair of names is one Round-1 match, in the true top-to-bottom
+// sheet order — find the matching ESPN match object for each pair by name.
+function positionsFromWikiOrder(r1Matches, wikiNames){
   const numR1 = r1Matches.length;
+  const positions = new Array(numR1).fill(null);
+  const used = new Set();
+  for(let k = 0; k < numR1; k++){
+    const n1 = normalize(wikiNames[2*k]);
+    const n2 = normalize(wikiNames[2*k+1]);
+    const idx = r1Matches.findIndex((m,i) => !used.has(i) && m.competitors.some(co => co.athlete && normalize(co.athlete.displayName) === n1) && m.competitors.some(co => co.athlete && normalize(co.athlete.displayName) === n2));
+    if(idx !== -1){ positions[k] = r1Matches[idx]; used.add(idx); }
+  }
+  if(positions.some(p => !p)) return null; // a name didn't match — don't trust a partial result
+  return positions;
+}
+function buildRound1Positions(r1Matches, r2Matches, seedMap, wikiNames){
+  const numR1 = r1Matches.length;
+  if(wikiNames){
+    const fromWiki = positionsFromWikiOrder(r1Matches, wikiNames);
+    if(fromWiki) return fromWiki;
+  }
   const positions = new Array(numR1).fill(null);
   const confirmedPairs = []; // arrays of exactly 2 r1 indices
   const loose = []; // r1 indices with no confirmed sibling yet
@@ -593,7 +661,7 @@ function buildRound1Positions(r1Matches, r2Matches, seedMap){
 // Builds rounds[0..n] where each round is an array of API match objects (or null)
 // positioned so that a match's two children are always at [2j, 2j+1] of the
 // previous round — a real bracket tree, not just a grouped list.
-function buildBracketRounds(mainComps, orderLabels){
+function buildBracketRounds(mainComps, orderLabels, wikiNames){
   const byRound = {};
   mainComps.forEach(c => (byRound[c.round ? c.round.displayName : 'Unknown'] = byRound[c.round ? c.round.displayName : 'Unknown'] || []).push(c));
   const r1Matches = byRound[orderLabels[0]] || [];
@@ -601,7 +669,7 @@ function buildBracketRounds(mainComps, orderLabels){
   if(numR1 < 2 || (numR1 & (numR1 - 1)) !== 0) return null; // needs a clean power-of-two draw
 
   const seedMap = extractSeedMap(mainComps);
-  const positions = buildRound1Positions(r1Matches, byRound[orderLabels[1]] || [], seedMap);
+  const positions = buildRound1Positions(r1Matches, byRound[orderLabels[1]] || [], seedMap, wikiNames);
 
   const rounds = [positions];
   let prev = positions;
@@ -647,11 +715,15 @@ function bracketMatchHtml(m, seedMap){
     : ('<div class="bm-score">' + esc(scoreLineText(m)) + (m.status.type.state === 'in' ? ' <span class="pill live" style="margin-left:4px;">' + esc(m.status.type.shortDetail) + '</span>' : '') + '</div>');
   return '<div class="bm' + (tracked ? ' tracked' : '') + '">' + lines + footer + '</div>';
 }
-function renderBracket(comps, containerEl){
+async function renderBracket(comps, containerEl, wikiTitle){
   const mainComps = mainDrawOnly(comps);
   if(!mainComps.length){ containerEl.innerHTML = '<div class="small">Draw not set yet.</div>'; return; }
   const {order} = chronologicalRoundOrder(mainComps);
-  const rounds = buildBracketRounds(mainComps, order);
+  const byRoundCount = {};
+  mainComps.forEach(c => (byRoundCount[c.round ? c.round.displayName : 'Unknown'] = (byRoundCount[c.round ? c.round.displayName : 'Unknown']||0)+1));
+  const numR1 = byRoundCount[order[0]] || 0;
+  const wikiNames = await fetchWikiRound1Order(wikiTitle, numR1);
+  const rounds = buildBracketRounds(mainComps, order, wikiNames);
   if(!rounds){ renderRoundsTabbed(comps, containerEl); return; }
   const seedMap = extractSeedMap(mainComps);
   const tabsHtml = order.map((label,i) =>
@@ -679,7 +751,7 @@ async function loadFullDraw(slam, containerEl){
     const event = data.events && data.events[0];
     const singles = event ? (event.groupings || []).find(g => g.grouping.slug === 'mens-singles') : null;
     const comps = singles ? singles.competitions : [];
-    renderBracket(comps, containerEl);
+    await renderBracket(comps, containerEl, slam.wikiTitle);
   }catch(e){
     containerEl.innerHTML = '<div class="error-note">Could not load the full draw (' + e.message + ').</div>';
   }
