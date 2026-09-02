@@ -63,6 +63,18 @@
   .match.tracked{background:var(--highlight);margin:0 -14px;padding:5px 14px;}
   .match .time{color:var(--muted);font-size:12px;}
   .stage-block{margin-bottom:4px;}
+  .tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab-btn{flex:0 0 auto;background:var(--card);border:1px solid var(--line);color:var(--muted);padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap;}
+  .tab-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .sub-tabs{padding-top:6px;}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+  .subtab-panel{display:none;}
+  .subtab-panel.active{display:block;}
+  .round-tabs{padding:0 0 10px;}
+  .round-tab-btn{padding:6px 12px;font-size:12px;}
+  .round-view{min-height:20px;}
 </style>
 </head>
 <body>
@@ -74,57 +86,76 @@
 
 <main>
 
-  <section id="sec-players">
-    <h2>Alcaraz · Sinner · Jódar</h2>
-    <div id="playersCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
-  </section>
+  <div class="tabs main-tabs">
+    <button class="tab-btn" data-tab="football">⚽ Football</button>
+    <button class="tab-btn" data-tab="tennis">🎾 Tennis</button>
+  </div>
 
-  <section id="sec-laliga">
-    <h2>La Liga — Your Clubs</h2>
-    <div id="laligaClubCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
-  </section>
+  <div id="tab-football" class="tab-panel">
 
-  <section id="sec-pl-clubs">
-    <h2>Premier League — Your Clubs</h2>
-    <div id="plClubCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
-  </section>
+    <div class="tabs sub-tabs">
+      <button class="tab-btn" data-subtab="spain">Spain</button>
+      <button class="tab-btn" data-subtab="england">England</button>
+      <button class="tab-btn" data-subtab="ucl">Champions League</button>
+    </div>
 
-  <section id="sec-laliga-table">
-    <h2>La Liga Table</h2>
-    <div id="laligaTableWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
-  </section>
+    <div id="subtab-spain" class="subtab-panel">
+      <section id="sec-laliga">
+        <h2>La Liga — Your Clubs</h2>
+        <div id="laligaClubCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
+      </section>
+      <section id="sec-laliga-table">
+        <h2>La Liga Table</h2>
+        <div id="laligaTableWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+      </section>
+      <section id="sec-laliga-scorers">
+        <h3>Top Scorers</h3>
+        <div id="laligaScorersWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+      </section>
+    </div>
 
-  <section id="sec-laliga-scorers">
-    <h3>La Liga — Top Scorers</h3>
-    <div id="laligaScorersWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
-  </section>
+    <div id="subtab-england" class="subtab-panel">
+      <section id="sec-pl-clubs">
+        <h2>Premier League — Your Clubs</h2>
+        <div id="plClubCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
+      </section>
+      <section id="sec-pl-table">
+        <h2>Premier League Table</h2>
+        <div id="plTableWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+      </section>
+      <section id="sec-pl-scorers">
+        <h3>Top Scorers</h3>
+        <div id="plScorersWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+      </section>
+    </div>
 
-  <section id="sec-pl-table">
-    <h2>Premier League Table</h2>
-    <div id="plTableWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
-  </section>
+    <div id="subtab-ucl" class="subtab-panel">
+      <section id="sec-ucl">
+        <h2>Champions League Table</h2>
+        <div id="uclTableWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+        <h3>All Results, by Stage</h3>
+        <div id="uclResultsWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+      </section>
+    </div>
 
-  <section id="sec-pl-scorers">
-    <h3>Premier League — Top Scorers</h3>
-    <div id="plScorersWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
-  </section>
+  </div>
 
-  <section id="sec-ucl">
-    <h2>Champions League</h2>
-    <div id="uclTableWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
-    <h3>All Results, by Stage</h3>
-    <div id="uclResultsWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
-  </section>
+  <div id="tab-tennis" class="tab-panel">
+    <section id="sec-players">
+      <h2>Alcaraz · Sinner · Jódar</h2>
+      <div id="playersCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
+    </section>
 
-  <section id="sec-atp-rank">
-    <h2>ATP Rankings</h2>
-    <div id="atpRankWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
-  </section>
+    <section id="sec-atp-rank">
+      <h2>ATP Rankings</h2>
+      <div id="atpRankWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+    </section>
 
-  <section id="sec-slams">
-    <h2>Grand Slams &amp; ATP Finals — 2026</h2>
-    <div id="slamCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
-  </section>
+    <section id="sec-slams">
+      <h2>Grand Slams &amp; ATP Finals — 2026</h2>
+      <div id="slamCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
+    </section>
+  </div>
 
 </main>
 
@@ -364,7 +395,14 @@ async function loadPlayerCards(){
       const isLive = state === 'in';
       const roundLabel = c.round ? c.round.displayName : '';
       const note = (c.notes && c.notes[0] && c.notes[0].text) || '';
-      const scheduledLine = state === 'pre' ? ('Scheduled: ' + fmtTime(new Date(c.date))) : (note || 'Result pending');
+      let scheduledLine;
+      if(state === 'pre'){
+        const opponent = c.competitors.find(co => !(co.athlete && normalize(co.athlete.displayName) === normalize(p)));
+        const oppName = opponent && opponent.athlete ? opponent.athlete.displayName : 'TBD';
+        scheduledLine = 'vs ' + oppName + ' — ' + fmtTime(new Date(c.date));
+      } else {
+        scheduledLine = note || 'Result pending';
+      }
       return '<div class="card' + (isLive ? ' tracked' : '') + '">' +
         '<div class="row-between"><strong>' + p + '</strong><span class="pill' + (isLive?' live':'') + '">' + (isLive ? c.status.type.shortDetail : c.status.type.description) + '</span></div>' +
         '<div class="small">' + esc(event.name) + (roundLabel ? ' · ' + roundLabel : '') + '</div>' +
@@ -377,31 +415,52 @@ async function loadPlayerCards(){
 }
 
 // ---------- Grand Slams + ATP Finals : full round-by-round draw, lazy loaded ----------
-function renderRounds(comps, event){
-  if(!comps.length) return '<div class="small">Draw not set yet.</div>';
+function mainDrawOnly(comps){
+  return comps.filter(c => !(c.round && /qualifying/i.test(c.round.displayName)));
+}
+function matchLineHtml(c){
+  const isLive = c.status.type.state === 'in';
+  let line;
+  if(c.status.type.state === 'pre'){
+    const names = c.competitors.map(co => co.athlete ? co.athlete.displayName : 'TBD').join(' vs ');
+    line = esc(names) + ' <span class="time">— ' + fmtTime(new Date(c.date)) + '</span>';
+  } else {
+    line = esc((c.notes && c.notes[0] && c.notes[0].text) || c.competitors.map(co=>co.athlete?co.athlete.displayName:'?').join(' vs '));
+    if(isLive) line += ' <span class="pill live" style="margin-left:6px;">' + esc(c.status.type.shortDetail) + '</span>';
+  }
+  return line;
+}
+function renderRoundsTabbed(comps, containerEl){
+  const mainComps = mainDrawOnly(comps);
+  if(!mainComps.length){ containerEl.innerHTML = '<div class="small">Draw not set yet.</div>'; return; }
   const order = [];
   const byRound = {};
-  comps.slice().sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(c => {
+  mainComps.slice().sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(c => {
     const label = c.round ? c.round.displayName : 'Unknown';
     if(!byRound[label]){ byRound[label] = []; order.push(label); }
     byRound[label].push(c);
   });
-  return order.map(label => {
-    const matches = byRound[label].map(c => {
-      const isLive = c.status.type.state === 'in';
+  const tabsHtml = order.map((label,i) =>
+    '<button class="tab-btn round-tab-btn" data-round="' + i + '">' + esc(label) + '</button>'
+  ).join('');
+  containerEl.innerHTML = '<div class="tabs round-tabs">' + tabsHtml + '</div><div class="round-view"></div>';
+  const view = containerEl.querySelector('.round-view');
+  function renderMatches(idx){
+    containerEl.querySelectorAll('.round-tab-btn').forEach((b,i) => b.classList.toggle('active', i === idx));
+    const label = order[idx];
+    view.innerHTML = byRound[label].map(c => {
       const tracked = c.competitors.some(co => co.athlete && isTrackedName(co.athlete.displayName));
-      let line;
-      if(c.status.type.state === 'pre'){
-        const names = c.competitors.map(co => co.athlete ? co.athlete.displayName : 'TBD').join(' vs ');
-        line = esc(names) + ' <span class="time">— ' + fmtTime(new Date(c.date)) + '</span>';
-      } else {
-        line = esc((c.notes && c.notes[0] && c.notes[0].text) || c.competitors.map(co=>co.athlete?co.athlete.displayName:'?').join(' vs '));
-        if(isLive) line += ' <span class="pill live" style="margin-left:6px;">' + esc(c.status.type.shortDetail) + '</span>';
-      }
-      return '<div class="match' + (tracked ? ' tracked' : '') + '">' + line + '</div>';
+      return '<div class="match' + (tracked ? ' tracked' : '') + '">' + matchLineHtml(c) + '</div>';
     }).join('');
-    return '<div class="round-block"><div class="round-title">' + esc(label) + '</div>' + matches + '</div>';
-  }).join('');
+  }
+  containerEl.querySelectorAll('.round-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => renderMatches(parseInt(btn.dataset.round, 10)));
+  });
+  let defaultIdx = 0;
+  order.forEach((label, i) => {
+    if(byRound[label].some(c => c.status.type.state !== 'pre')) defaultIdx = i;
+  });
+  renderMatches(defaultIdx);
 }
 async function loadFullDraw(slam, containerEl){
   containerEl.innerHTML = '<div class="empty-note"><span class="spinner"></span> Loading full draw…</div>';
@@ -410,7 +469,7 @@ async function loadFullDraw(slam, containerEl){
     const event = data.events && data.events[0];
     const singles = event ? (event.groupings || []).find(g => g.grouping.slug === 'mens-singles') : null;
     const comps = singles ? singles.competitions : [];
-    containerEl.innerHTML = renderRounds(comps, event);
+    renderRoundsTabbed(comps, containerEl);
   }catch(e){
     containerEl.innerHTML = '<div class="error-note">Could not load the full draw (' + e.message + ').</div>';
   }
@@ -424,7 +483,7 @@ async function loadSlamCard(slam){
         '<div class="empty-note">No data yet for this date window.</div></div>';
     }
     const singles = (event.groupings || []).find(g => g.grouping.slug === 'mens-singles');
-    const comps = singles ? singles.competitions : [];
+    const comps = mainDrawOnly(singles ? singles.competitions : []);
     const final = comps.find(c => c.round && c.round.displayName === 'Final' && c.status.type.completed);
     let statusLine;
     if(final){
@@ -563,6 +622,29 @@ async function loadAll(){
   ]);
   document.getElementById('footerStatus').textContent = 'Last updated ' + new Date().toLocaleString();
 }
+
+// ---------- Tabs ----------
+function setActiveTab(tab){
+  document.querySelectorAll('.main-tabs .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('tab-football').classList.toggle('active', tab === 'football');
+  document.getElementById('tab-tennis').classList.toggle('active', tab === 'tennis');
+  try{ localStorage.setItem('scores.activeTab', tab); }catch(e){}
+}
+function setActiveSubtab(sub){
+  document.querySelectorAll('.sub-tabs .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.subtab === sub));
+  document.querySelectorAll('.subtab-panel').forEach(p => p.classList.toggle('active', p.id === 'subtab-' + sub));
+  try{ localStorage.setItem('scores.activeSubtab', sub); }catch(e){}
+}
+document.querySelectorAll('.main-tabs .tab-btn').forEach(b => b.addEventListener('click', () => setActiveTab(b.dataset.tab)));
+document.querySelectorAll('.sub-tabs .tab-btn').forEach(b => b.addEventListener('click', () => setActiveSubtab(b.dataset.subtab)));
+let initialTab = 'football', initialSubtab = 'spain';
+try{
+  initialTab = localStorage.getItem('scores.activeTab') || 'football';
+  initialSubtab = localStorage.getItem('scores.activeSubtab') || 'spain';
+}catch(e){}
+setActiveTab(initialTab);
+setActiveSubtab(initialSubtab);
+
 loadAll();
 </script>
 </body>
