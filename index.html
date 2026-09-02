@@ -25,6 +25,7 @@
   main{max-width:640px;margin:0 auto;padding:8px 12px;}
   section{margin:22px 0;}
   section h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 10px 2px;}
+  section h3{font-size:13px;color:var(--muted);margin:14px 2px 8px;}
   .cards{display:flex;flex-direction:column;gap:8px;}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
   .card.tracked{background:var(--highlight);border-color:var(--highlight-border);}
@@ -41,13 +42,27 @@
   tr.tracked td{background:var(--highlight);font-weight:600;}
   tbody tr:last-child td{border-bottom:none;}
   .match-line{font-size:14px;margin-top:4px;}
+  .goal-line{font-size:12.5px;color:var(--muted);margin-top:3px;}
   .result-win{color:var(--live);font-weight:600;}
   .result-loss{color:var(--muted);}
+  .next-line{font-size:12.5px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line);color:var(--muted);}
   footer{max-width:640px;margin:24px auto 0;padding:0 16px;color:var(--muted);font-size:12px;text-align:center;}
   .error-note{font-size:12px;color:var(--muted);font-style:italic;}
   .empty-note{font-size:13px;color:var(--muted);}
   .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;}
   @keyframes spin{to{transform:rotate(360deg);}}
+  details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:0 14px;margin-bottom:8px;}
+  details summary{cursor:pointer;padding:12px 0;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center;}
+  details summary::-webkit-details-marker{display:none;}
+  details summary::after{content:"▾";color:var(--muted);transition:transform .15s;}
+  details[open] summary::after{transform:rotate(180deg);}
+  .round-block{padding:4px 0 14px;}
+  .round-title{font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin:10px 0 6px;}
+  .match{font-size:13.5px;padding:5px 0;border-bottom:1px solid var(--line);}
+  .match:last-child{border-bottom:none;}
+  .match.tracked{background:var(--highlight);margin:0 -14px;padding:5px 14px;}
+  .match .time{color:var(--muted);font-size:12px;}
+  .stage-block{margin-bottom:4px;}
 </style>
 </head>
 <body>
@@ -66,7 +81,12 @@
 
   <section id="sec-laliga">
     <h2>La Liga — Your Clubs</h2>
-    <div id="clubCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
+    <div id="laligaClubCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
+  </section>
+
+  <section id="sec-pl-clubs">
+    <h2>Premier League — Your Clubs</h2>
+    <div id="plClubCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
   </section>
 
   <section id="sec-laliga-table">
@@ -74,9 +94,26 @@
     <div id="laligaTableWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
   </section>
 
+  <section id="sec-laliga-scorers">
+    <h3>La Liga — Top Scorers</h3>
+    <div id="laligaScorersWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+  </section>
+
   <section id="sec-pl-table">
     <h2>Premier League Table</h2>
     <div id="plTableWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+  </section>
+
+  <section id="sec-pl-scorers">
+    <h3>Premier League — Top Scorers</h3>
+    <div id="plScorersWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+  </section>
+
+  <section id="sec-ucl">
+    <h2>Champions League</h2>
+    <div id="uclTableWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+    <h3>All Results, by Stage</h3>
+    <div id="uclResultsWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
   </section>
 
   <section id="sec-atp-rank">
@@ -95,11 +132,20 @@
 
 <script>
 const TRACKED_PLAYERS = ['Carlos Alcaraz', 'Jannik Sinner', 'Rafael Jodar'];
+
 const LALIGA_CLUBS = [
   {id:'86', name:'Real Madrid'},
   {id:'83', name:'Barcelona'},
-  {id:'93', name:'Athletic Club'}
+  {id:'93', name:'Athletic Club'},
+  {id:'1068', name:'Atlético Madrid'}
 ];
+const PL_CLUBS = [
+  {id:'382', name:'Manchester City'},
+  {id:'360', name:'Manchester United'},
+  {id:'364', name:'Liverpool'},
+  {id:'359', name:'Arsenal'}
+];
+
 // Base ESPN tournament ids (stable across years) + a date known to fall inside that
 // year's tournament window, used to look the event up via ?dates=YYYYMMDD.
 const SLAMS_2026 = [
@@ -109,6 +155,15 @@ const SLAMS_2026 = [
   {id: 189, name: 'US Open',         probeDate: '20260830'},
   {id: 339, name: 'ATP Finals',      probeDate: '20261115'}
 ];
+const STAGE_LABELS = {
+  'league-phase': 'League Phase',
+  'knockout-round-playoffs': 'Knockout Playoffs',
+  'round-of-16': 'Round of 16',
+  'quarterfinals': 'Quarterfinals',
+  'semifinals': 'Semifinals',
+  'final': 'Final'
+};
+const STAGE_ORDER = ['league-phase','knockout-round-playoffs','round-of-16','quarterfinals','semifinals','final'];
 
 function normalize(s){
   return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
@@ -128,33 +183,64 @@ function statMap(entryStats){
   return m;
 }
 function fmtTime(d){
-  return d.toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+  return d.toLocaleString(undefined, {weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+}
+function fmtDateRange(){
+  const today = new Date();
+  const from = new Date(today); from.setDate(from.getDate() - 14);
+  const to = new Date(today); to.setDate(to.getDate() + 21);
+  const fmt = d => d.toISOString().slice(0,10).replace(/-/g,'');
+  return fmt(from) + '-' + fmt(to);
 }
 function setSectionError(el, msg){
   el.innerHTML = '<div class="card error-note">Could not load this section (' + msg + ').</div>';
 }
+function esc(s){
+  return (s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+}
 
-// ---------- La Liga / Premier League standings ----------
+// ---------- League standings ----------
+function renderStandingsHtml(data, wrapEl, highlightIds){
+  const entries = data.children[0].standings.entries.slice();
+  entries.sort((a,b) => parseInt(statMap(a.stats).rank) - parseInt(statMap(b.stats).rank));
+  let html = '<table><thead><tr><th>#</th><th>Club</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr></thead><tbody>';
+  for(const e of entries){
+    const s = statMap(e.stats);
+    const tracked = highlightIds && highlightIds.includes(e.team.id);
+    html += '<tr' + (tracked ? ' class="tracked"' : '') + '>' +
+      '<td>' + s.rank + '</td>' +
+      '<td class="team-cell">' + esc(e.team.displayName) + '</td>' +
+      '<td>' + s.gamesPlayed + '</td>' +
+      '<td>' + s.wins + '</td>' +
+      '<td>' + s.ties + '</td>' +
+      '<td>' + s.losses + '</td>' +
+      '<td>' + s.pointDifferential + '</td>' +
+      '<td><strong>' + s.points + '</strong></td>' +
+      '</tr>';
+  }
+  html += '</tbody></table>';
+  wrapEl.innerHTML = html;
+}
 async function loadStandingsTable(slug, wrapEl, highlightIds){
   try{
     const data = await fetchJson('https://site.api.espn.com/apis/v2/sports/soccer/' + slug + '/standings');
-    const entries = data.children[0].standings.entries.slice();
-    entries.sort((a,b) => parseInt(statMap(a.stats).rank) - parseInt(statMap(b.stats).rank));
-    let html = '<table><thead><tr><th>#</th><th>Club</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr></thead><tbody>';
-    for(const e of entries){
-      const s = statMap(e.stats);
-      const tracked = highlightIds && highlightIds.includes(e.team.id);
-      html += '<tr' + (tracked ? ' class="tracked"' : '') + '>' +
-        '<td>' + s.rank + '</td>' +
-        '<td class="team-cell">' + e.team.displayName + '</td>' +
-        '<td>' + s.gamesPlayed + '</td>' +
-        '<td>' + s.wins + '</td>' +
-        '<td>' + s.ties + '</td>' +
-        '<td>' + s.losses + '</td>' +
-        '<td>' + s.pointDifferential + '</td>' +
-        '<td><strong>' + s.points + '</strong></td>' +
-        '</tr>';
-    }
+    renderStandingsHtml(data, wrapEl, highlightIds);
+  }catch(e){
+    setSectionError(wrapEl, e.message);
+  }
+}
+
+// ---------- Top scorers ----------
+async function loadTopScorers(slug, wrapEl){
+  try{
+    const data = await fetchJson('https://site.api.espn.com/apis/site/v2/sports/soccer/' + slug + '/statistics');
+    const goals = data.stats.find(s => s.name === 'goalsLeaders');
+    const top = (goals ? goals.leaders : []).slice(0, 10);
+    let html = '<table><thead><tr><th>#</th><th>Player</th><th>Club</th><th>Goals</th></tr></thead><tbody>';
+    top.forEach((l, i) => {
+      const team = l.team ? l.team.displayName : (l.athlete.team ? l.athlete.team.displayName : '');
+      html += '<tr><td>' + (i+1) + '</td><td class="team-cell">' + esc(l.athlete.displayName) + '</td><td class="team-cell">' + esc(team) + '</td><td><strong>' + l.value + '</strong></td></tr>';
+    });
     html += '</tbody></table>';
     wrapEl.innerHTML = html;
   }catch(e){
@@ -162,37 +248,60 @@ async function loadStandingsTable(slug, wrapEl, highlightIds){
   }
 }
 
-// ---------- Club results (La Liga clubs) ----------
-async function loadClubCards(){
-  const el = document.getElementById('clubCards');
+// ---------- Club cards (last result w/ scorers + next scheduled) ----------
+function goalLine(details, clubIds){
+  const goals = (details || []).filter(d => d.scoringPlay);
+  if(!goals.length) return '';
+  const names = goals.map(g => {
+    const scorer = g.athletesInvolved && g.athletesInvolved[0] ? g.athletesInvolved[0].displayName : '?';
+    return scorer + ' ' + g.clock.displayValue + (g.ownGoal ? ' (OG)' : '') + (g.penaltyKick ? ' (pen)' : '');
+  });
+  return '<div class="goal-line">⚽ ' + names.join(' · ') + '</div>';
+}
+async function loadLeagueClubCards(slug, clubs, elId){
+  const el = document.getElementById(elId);
   try{
-    const results = await Promise.all(LALIGA_CLUBS.map(async club => {
-      try{
-        const data = await fetchJson('https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/teams/' + club.id + '/schedule');
-        const events = (data.events || []).slice().sort((a,b) => new Date(b.date) - new Date(a.date));
-        const match = events[0];
-        return {club, match};
-      }catch(e){
-        return {club, error: e.message};
+    const data = await fetchJson('https://site.api.espn.com/apis/site/v2/sports/soccer/' + slug + '/scoreboard?dates=' + fmtDateRange() + '&limit=300');
+    const events = data.events || [];
+    el.innerHTML = clubs.map(club => {
+      const clubEvents = events.filter(ev => ev.competitions[0].competitors.some(c => c.team.id === club.id));
+      if(!clubEvents.length){
+        return '<div class="card"><div class="row-between"><strong>' + club.name + '</strong></div><div class="empty-note">No match found in the last two / next three weeks.</div></div>';
       }
-    }));
-    el.innerHTML = results.map(r => {
-      if(r.error) return '<div class="card"><div class="row-between"><strong>' + r.club.name + '</strong><span class="pill">n/a</span></div><div class="error-note">' + r.error + '</div></div>';
-      if(!r.match) return '<div class="card"><div class="row-between"><strong>' + r.club.name + '</strong></div><div class="empty-note">No recent match found.</div></div>';
-      const comp = r.match.competitions[0];
-      const state = comp.status.type.state; // 'pre' | 'in' | 'post'
-      const isLive = state === 'in';
-      const own = comp.competitors.find(c => c.team.id === r.club.id);
-      const opp = comp.competitors.find(c => c.team.id !== r.club.id);
-      const ownScore = own && own.score ? own.score.displayValue : '-';
-      const oppScore = opp && opp.score ? opp.score.displayValue : '-';
-      const venue = own && own.homeAway === 'home' ? 'vs' : '@';
-      const pillLabel = isLive ? comp.status.type.shortDetail : (state === 'post' ? comp.status.type.shortDetail : fmtTime(new Date(r.match.date)));
-      const resultClass = state === 'post' ? (own.winner ? 'result-win' : (opp.winner ? 'result-loss' : '')) : '';
-      return '<div class="card' + (isLive ? ' tracked' : '') + '">' +
-        '<div class="row-between"><strong>' + r.club.name + '</strong><span class="pill' + (isLive?' live':'') + '">' + pillLabel + '</span></div>' +
-        '<div class="match-line ' + resultClass + '">' + venue + ' ' + (opp ? opp.team.displayName : '?') + ' — <strong>' + ownScore + ' - ' + oppScore + '</strong></div>' +
-        '</div>';
+      clubEvents.sort((a,b) => new Date(a.date) - new Date(b.date));
+      const now = new Date();
+      const past = clubEvents.filter(ev => ev.competitions[0].status.type.state === 'post');
+      const live = clubEvents.filter(ev => ev.competitions[0].status.type.state === 'in');
+      const future = clubEvents.filter(ev => ev.competitions[0].status.type.state === 'pre');
+      const current = live[0] || past[past.length-1];
+      const next = future[0];
+
+      let body = '';
+      if(current){
+        const comp = current.competitions[0];
+        const isLive = comp.status.type.state === 'in';
+        const own = comp.competitors.find(c => c.team.id === club.id);
+        const opp = comp.competitors.find(c => c.team.id !== club.id);
+        const ownScore = own && own.score != null ? own.score : '-';
+        const oppScore = opp && opp.score != null ? opp.score : '-';
+        const venue = own.homeAway === 'home' ? 'vs' : '@';
+        const pillLabel = comp.status.type.shortDetail;
+        const resultClass = comp.status.type.state === 'post' ? (own.winner ? 'result-win' : (opp.winner ? 'result-loss' : '')) : '';
+        body += '<div class="row-between"><strong>' + club.name + '</strong><span class="pill' + (isLive?' live':'') + '">' + pillLabel + '</span></div>' +
+          '<div class="match-line ' + resultClass + '">' + venue + ' ' + esc(opp.team.displayName) + ' — <strong>' + ownScore + ' - ' + oppScore + '</strong></div>' +
+          goalLine(comp.details, [club.id]);
+      } else {
+        body += '<div class="row-between"><strong>' + club.name + '</strong></div>';
+      }
+      if(next){
+        const ncomp = next.competitions[0];
+        const nown = ncomp.competitors.find(c => c.team.id === club.id);
+        const nopp = ncomp.competitors.find(c => c.team.id !== club.id);
+        const venue = nown.homeAway === 'home' ? 'vs' : '@';
+        body += '<div class="next-line">Next: ' + venue + ' ' + esc(nopp.team.displayName) + ' — ' + fmtTime(new Date(next.date)) + '</div>';
+      }
+      const cardIsLive = current && current.competitions[0].status.type.state === 'in';
+      return '<div class="card' + (cardIsLive ? ' tracked' : '') + '">' + body + '</div>';
     }).join('');
   }catch(e){
     setSectionError(el, e.message);
@@ -212,7 +321,7 @@ async function loadAtpRankings(){
       const tracked = isTrackedName(r.athlete.displayName);
       return '<tr' + (tracked ? ' class="tracked"' : '') + '>' +
         '<td>' + r.current + '</td>' +
-        '<td class="team-cell">' + r.athlete.displayName + '</td>' +
+        '<td class="team-cell">' + esc(r.athlete.displayName) + '</td>' +
         '<td>' + r.points.toLocaleString() + '</td>' +
         '</tr>';
     }).join('');
@@ -250,15 +359,16 @@ async function loadPlayerCards(){
     }
     el.innerHTML = TRACKED_PLAYERS.map(p => {
       const c = matches[p];
-      if(!c) return '<div class="card"><div class="row-between"><strong>' + p + '</strong><span class="pill">not in draw</span></div><div class="empty-note">Not competing at ' + event.name + ' right now.</div></div>';
+      if(!c) return '<div class="card"><div class="row-between"><strong>' + p + '</strong><span class="pill">not in draw</span></div><div class="empty-note">Not competing at ' + esc(event.name) + ' right now.</div></div>';
       const state = c.status.type.state;
       const isLive = state === 'in';
       const roundLabel = c.round ? c.round.displayName : '';
       const note = (c.notes && c.notes[0] && c.notes[0].text) || '';
+      const scheduledLine = state === 'pre' ? ('Scheduled: ' + fmtTime(new Date(c.date))) : (note || 'Result pending');
       return '<div class="card' + (isLive ? ' tracked' : '') + '">' +
         '<div class="row-between"><strong>' + p + '</strong><span class="pill' + (isLive?' live':'') + '">' + (isLive ? c.status.type.shortDetail : c.status.type.description) + '</span></div>' +
-        '<div class="small">' + event.name + (roundLabel ? ' · ' + roundLabel : '') + '</div>' +
-        '<div class="match-line">' + (note || 'Match scheduled') + '</div>' +
+        '<div class="small">' + esc(event.name) + (roundLabel ? ' · ' + roundLabel : '') + '</div>' +
+        '<div class="match-line">' + esc(scheduledLine) + '</div>' +
         '</div>';
     }).join('');
   }catch(e){
@@ -266,7 +376,45 @@ async function loadPlayerCards(){
   }
 }
 
-// ---------- Grand Slams + ATP Finals ----------
+// ---------- Grand Slams + ATP Finals : full round-by-round draw, lazy loaded ----------
+function renderRounds(comps, event){
+  if(!comps.length) return '<div class="small">Draw not set yet.</div>';
+  const order = [];
+  const byRound = {};
+  comps.slice().sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(c => {
+    const label = c.round ? c.round.displayName : 'Unknown';
+    if(!byRound[label]){ byRound[label] = []; order.push(label); }
+    byRound[label].push(c);
+  });
+  return order.map(label => {
+    const matches = byRound[label].map(c => {
+      const isLive = c.status.type.state === 'in';
+      const tracked = c.competitors.some(co => co.athlete && isTrackedName(co.athlete.displayName));
+      let line;
+      if(c.status.type.state === 'pre'){
+        const names = c.competitors.map(co => co.athlete ? co.athlete.displayName : 'TBD').join(' vs ');
+        line = esc(names) + ' <span class="time">— ' + fmtTime(new Date(c.date)) + '</span>';
+      } else {
+        line = esc((c.notes && c.notes[0] && c.notes[0].text) || c.competitors.map(co=>co.athlete?co.athlete.displayName:'?').join(' vs '));
+        if(isLive) line += ' <span class="pill live" style="margin-left:6px;">' + esc(c.status.type.shortDetail) + '</span>';
+      }
+      return '<div class="match' + (tracked ? ' tracked' : '') + '">' + line + '</div>';
+    }).join('');
+    return '<div class="round-block"><div class="round-title">' + esc(label) + '</div>' + matches + '</div>';
+  }).join('');
+}
+async function loadFullDraw(slam, containerEl){
+  containerEl.innerHTML = '<div class="empty-note"><span class="spinner"></span> Loading full draw…</div>';
+  try{
+    const data = await fetchJson('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=' + slam.probeDate);
+    const event = data.events && data.events[0];
+    const singles = event ? (event.groupings || []).find(g => g.grouping.slug === 'mens-singles') : null;
+    const comps = singles ? singles.competitions : [];
+    containerEl.innerHTML = renderRounds(comps, event);
+  }catch(e){
+    containerEl.innerHTML = '<div class="error-note">Could not load the full draw (' + e.message + ').</div>';
+  }
+}
 async function loadSlamCard(slam){
   try{
     const data = await fetchJson('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=' + slam.probeDate);
@@ -281,11 +429,11 @@ async function loadSlamCard(slam){
     let statusLine;
     if(final){
       const winner = final.competitors.find(c => c.winner);
-      statusLine = '<span class="pill">Completed</span> Champion: <strong>' + (winner ? winner.athlete.displayName : '?') + '</strong>';
+      statusLine = '<span class="pill">Completed</span> Champion: <strong>' + (winner ? esc(winner.athlete.displayName) : '?') + '</strong>';
     } else {
       const inProgress = comps.filter(c => c.status.type.state !== 'pre');
       if(inProgress.length){
-        statusLine = '<span class="pill live">In progress</span> Latest round: ' + inProgress[inProgress.length-1].round.displayName;
+        statusLine = '<span class="pill live">In progress</span> Latest round: ' + esc(inProgress[inProgress.length-1].round.displayName);
       } else {
         statusLine = '<span class="pill">Not started</span>';
       }
@@ -297,10 +445,15 @@ async function loadSlamCard(slam){
       const last = own[0];
       const note = (last.notes && last.notes[0] && last.notes[0].text) || '';
       const round = last.round ? last.round.displayName : '';
-      return '<div class="small"><strong>' + p + '</strong> — ' + round + (note ? ': ' + note : '') + '</div>';
+      return '<div class="small"><strong>' + p + '</strong> — ' + esc(round) + (note ? ': ' + esc(note) : '') + '</div>';
     }).join('');
+    const drawId = 'draw-' + slam.id;
     return '<div class="card"><div class="row-between"><strong>' + slam.name + '</strong></div>' +
-      '<div class="match-line" style="margin-bottom:6px;">' + statusLine + '</div>' + playerLines + '</div>';
+      '<div class="match-line" style="margin-bottom:6px;">' + statusLine + '</div>' + playerLines +
+      '<details id="' + drawId + '" style="margin:10px -14px -12px;border:none;border-top:1px solid var(--line);border-radius:0;">' +
+      '<summary style="font-size:13px;">Show full draw</summary>' +
+      '<div class="draw-content" style="padding-bottom:10px;">Tap to load…</div>' +
+      '</details></div>';
   }catch(e){
     return '<div class="card"><div class="row-between"><strong>' + slam.name + '</strong><span class="pill">error</span></div>' +
       '<div class="error-note">' + e.message + '</div></div>';
@@ -311,9 +464,86 @@ async function loadSlamCards(){
   try{
     const cards = await Promise.all(SLAMS_2026.map(loadSlamCard));
     el.innerHTML = cards.join('');
+    SLAMS_2026.forEach(slam => {
+      const details = document.getElementById('draw-' + slam.id);
+      if(!details) return;
+      let loaded = false;
+      details.addEventListener('toggle', () => {
+        if(details.open && !loaded){
+          loaded = true;
+          loadFullDraw(slam, details.querySelector('.draw-content'));
+        }
+      });
+    });
   }catch(e){
     setSectionError(el, e.message);
   }
+}
+
+// ---------- Champions League ----------
+async function loadUcl(){
+  const tableEl = document.getElementById('uclTableWrap');
+  const resultsEl = document.getElementById('uclResultsWrap');
+  const followedIds = LALIGA_CLUBS.concat(PL_CLUBS).map(c => c.id);
+  let standingsData;
+  try{
+    standingsData = await fetchJson('https://site.api.espn.com/apis/v2/sports/soccer/uefa.champions/standings');
+  }catch(e){
+    setSectionError(tableEl, e.message);
+    setSectionError(resultsEl, e.message);
+    return;
+  }
+  renderStandingsHtml(standingsData, tableEl, followedIds);
+  const toDateStr = iso => iso.slice(0,10).replace(/-/g,'');
+  const from = toDateStr(standingsData.season.startDate);
+  const to = toDateStr(standingsData.season.endDate);
+  let seasonData;
+  try{
+    seasonData = await fetchJson('https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/scoreboard?dates=' + from + '-' + to + '&limit=500');
+  }catch(e){
+    setSectionError(resultsEl, e.message);
+    return;
+  }
+  try{
+    const events = seasonData.events || [];
+    const leaguePhase = events.filter(e => e.season.slug === 'league-phase').sort((a,b)=>new Date(a.date)-new Date(b.date));
+    const stages = {};
+    leaguePhase.forEach((e,i) => {
+      const md = Math.floor(i/18) + 1;
+      const key = 'Matchday ' + md;
+      (stages[key] = stages[key] || []).push(e);
+    });
+    let html = Object.keys(stages).map(key => renderStageDetails(key, stages[key], followedIds)).join('');
+    STAGE_ORDER.slice(1).forEach(slug => {
+      const evs = events.filter(e => e.season.slug === slug).sort((a,b)=>new Date(a.date)-new Date(b.date));
+      if(evs.length) html += renderStageDetails(STAGE_LABELS[slug], evs, followedIds);
+    });
+    resultsEl.innerHTML = html;
+  }catch(e){
+    setSectionError(resultsEl, e.message);
+  }
+}
+function renderStageDetails(title, events, followedIds){
+  const rows = events.map(e => {
+    const comp = e.competitions[0];
+    const home = comp.competitors.find(c => c.homeAway === 'home');
+    const away = comp.competitors.find(c => c.homeAway === 'away');
+    const tracked = followedIds.includes(home.team.id) || followedIds.includes(away.team.id);
+    const completed = comp.status.type.state === 'post';
+    const isLive = comp.status.type.state === 'in';
+    let scoreOrTime;
+    if(completed){
+      scoreOrTime = '<strong>' + home.score + ' - ' + away.score + '</strong>';
+    } else if(isLive){
+      scoreOrTime = '<span class="pill live">' + esc(comp.status.type.shortDetail) + '</span> ' + home.score + ' - ' + away.score;
+    } else {
+      scoreOrTime = '<span class="time">' + fmtTime(new Date(e.date)) + '</span>';
+    }
+    const gline = completed ? goalLine(comp.details) : '';
+    return '<div class="match' + (tracked ? ' tracked' : '') + '">' +
+      esc(home.team.displayName) + ' vs ' + esc(away.team.displayName) + ' — ' + scoreOrTime + gline + '</div>';
+  }).join('');
+  return '<details><summary>' + esc(title) + ' <span class="small">(' + events.length + ')</span></summary><div class="stage-block">' + rows + '</div></details>';
 }
 
 // ---------- Orchestration ----------
@@ -321,9 +551,13 @@ async function loadAll(){
   document.getElementById('footerStatus').textContent = 'Refreshing…';
   await Promise.allSettled([
     loadPlayerCards(),
-    loadClubCards(),
+    loadLeagueClubCards('esp.1', LALIGA_CLUBS, 'laligaClubCards'),
+    loadLeagueClubCards('eng.1', PL_CLUBS, 'plClubCards'),
     loadStandingsTable('esp.1', document.getElementById('laligaTableWrap'), LALIGA_CLUBS.map(c => c.id)),
-    loadStandingsTable('eng.1', document.getElementById('plTableWrap'), []),
+    loadStandingsTable('eng.1', document.getElementById('plTableWrap'), PL_CLUBS.map(c => c.id)),
+    loadTopScorers('esp.1', document.getElementById('laligaScorersWrap')),
+    loadTopScorers('eng.1', document.getElementById('plScorersWrap')),
+    loadUcl(),
     loadAtpRankings(),
     loadSlamCards()
   ]);
