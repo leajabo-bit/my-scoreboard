@@ -567,38 +567,73 @@ async function fetchWikiRound1Order(wikiTitle, numR1){
     return null;
   }
 }
-// Round 1 has no structured "slot" field, so its true sibling pairs (which two
-// Round-1 matches feed the same Round-2 match) have to be recovered from real
-// data: for every completed Round-1 match, its winner's name identifies exactly
-// which Round-2 match it feeds. Two Round-1 matches that resolve to the SAME
-// Round-2 match are a confirmed real pair — this is authoritative, unlike
-// guessing from seeds, which only anchors the ~32 matches that contain a seed
-// and leaves the other ~32 (unseeded-vs-unseeded) pairs pure guesswork.
-// Once pairs are known, seeds are used only to decide WHERE each pair sits
-// (so seed 1 ends up at the very top and seed 2 anchors the bottom half, per
-// the standard convention) and which side of the pair renders first.
+// Wikipedia and ESPN don't always spell a player's name identically (full
+// name vs. short form, transliteration variants) — try an exact match first,
+// then fall back to "every word in the shorter name appears in the longer
+// one" (catches "Coleman Wong" vs. ESPN's "Chak Lam Coleman Wong").
+function nameTokens(s){
+  return normalize(s).replace(/[^\p{L}\s]/gu, '').split(/\s+/).filter(Boolean);
+}
+function namesLikelyMatch(a, b){
+  if(!a || !b) return false;
+  if(normalize(a) === normalize(b)) return true;
+  const ta = nameTokens(a), tb = nameTokens(b);
+  if(!ta.length || !tb.length) return false;
+  const [shorter, longer] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  return shorter.every(tok => longer.includes(tok));
+}
 // If we have the real published order (from Wikipedia), use it directly: each
 // consecutive pair of names is one Round-1 match, in the true top-to-bottom
 // sheet order — find the matching ESPN match object for each pair by name.
+// Any pair that can't be matched (name spelled too differently between the
+// two sources) is left null for the caller to fill in some other way, rather
+// than discarding the whole — otherwise correct — order over one bad name.
 function positionsFromWikiOrder(r1Matches, wikiNames){
   const numR1 = r1Matches.length;
   const positions = new Array(numR1).fill(null);
   const used = new Set();
+  const hasBoth = (m, n1, n2, lenient) => {
+    const test = (co, name) => co.athlete && (lenient ? namesLikelyMatch(co.athlete.displayName, name) : normalize(co.athlete.displayName) === normalize(name));
+    return m.competitors.some(co => test(co, n1)) && m.competitors.some(co => test(co, n2));
+  };
   for(let k = 0; k < numR1; k++){
-    const n1 = normalize(wikiNames[2*k]);
-    const n2 = normalize(wikiNames[2*k+1]);
-    const idx = r1Matches.findIndex((m,i) => !used.has(i) && m.competitors.some(co => co.athlete && normalize(co.athlete.displayName) === n1) && m.competitors.some(co => co.athlete && normalize(co.athlete.displayName) === n2));
+    const n1 = wikiNames[2*k], n2 = wikiNames[2*k+1];
+    let idx = r1Matches.findIndex((m,i) => !used.has(i) && hasBoth(m, n1, n2, false));
+    if(idx === -1) idx = r1Matches.findIndex((m,i) => !used.has(i) && hasBoth(m, n1, n2, true));
     if(idx !== -1){ positions[k] = r1Matches[idx]; used.add(idx); }
   }
-  if(positions.some(p => !p)) return null; // a name didn't match — don't trust a partial result
   return positions;
 }
 function buildRound1Positions(r1Matches, r2Matches, seedMap, wikiNames){
   const numR1 = r1Matches.length;
   if(wikiNames){
-    const fromWiki = positionsFromWikiOrder(r1Matches, wikiNames);
-    if(fromWiki) return fromWiki;
+    const positions = positionsFromWikiOrder(r1Matches, wikiNames);
+    if(positions.every(p => p)) return positions;
+    // A handful of names didn't resolve (usually a spelling mismatch between
+    // sources) — heuristically place just those leftover matches into the
+    // still-empty slots, so one bad name doesn't undo the whole real order.
+    const usedMatches = new Set(positions.filter(Boolean));
+    const remaining = r1Matches.filter(m => !usedMatches.has(m));
+    const emptySlots = [];
+    positions.forEach((p, k) => { if(!p) emptySlots.push(k); });
+    if(remaining.length){
+      const filler = buildHeuristicPositions(remaining, r2Matches, seedMap);
+      emptySlots.forEach((slot, i) => { positions[slot] = filler[i] || null; });
+    }
+    return positions;
   }
+  return buildHeuristicPositions(r1Matches, r2Matches, seedMap);
+}
+// Pairing correctness (which two matches are real siblings) is recovered from
+// real data, never guessed: for every completed Round-1 match, its winner's
+// name identifies exactly which Round-2 match it feeds, and two Round-1
+// matches that resolve to the same Round-2 match are a confirmed real pair.
+// Seeds are then used only to decide WHERE each confirmed pair sits (so seed
+// 1 ends up at the very top and seed 2 anchors the bottom half, per the
+// standard convention) and which side of the pair renders first. This is the
+// fallback used only where Wikipedia's real published order isn't available.
+function buildHeuristicPositions(r1Matches, r2Matches, seedMap){
+  const numR1 = r1Matches.length;
   const positions = new Array(numR1).fill(null);
   const confirmedPairs = []; // arrays of exactly 2 r1 indices
   const loose = []; // r1 indices with no confirmed sibling yet
