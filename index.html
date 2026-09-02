@@ -495,6 +495,30 @@ function winnerNormName(m){
   const w = m.competitors.find(c => c.winner);
   return w && w.athlete ? normalize(w.athlete.displayName) : null;
 }
+// Standard recursive tournament seeding order: seedSlotTemplate(n)[i] is the
+// seed number assigned to slot i in a fair bracket of n slots (1 at slot 0,
+// each half built so top seeds only meet in later rounds — 1 and 4 meet in one
+// semifinal, 2 and 3 the other, 1 and 2 only possible in the final).
+function seedSlotTemplate(size){
+  let seeds = [1];
+  while(seeds.length < size){
+    const n = seeds.length * 2;
+    const next = [];
+    seeds.forEach(s => { next.push(s); next.push(n + 1 - s); });
+    seeds = next;
+  }
+  return seeds;
+}
+function matchOwnSeed(m, seedMap){
+  let best = Infinity;
+  m.competitors.forEach(co => {
+    if(co.athlete){
+      const s = seedMap[normalize(co.athlete.displayName)];
+      if(s && s < best) best = s;
+    }
+  });
+  return best;
+}
 // Round 1 has no structured "slot" field, so its true sibling pairs (which two
 // Round-1 matches feed the same Round-2 match) have to be recovered from real
 // data: for every completed Round-1 match, its winner's name identifies exactly
@@ -502,10 +526,16 @@ function winnerNormName(m){
 // Round-2 match are a confirmed real pair — this is authoritative, unlike
 // guessing from seeds, which only anchors the ~32 matches that contain a seed
 // and leaves the other ~32 (unseeded-vs-unseeded) pairs pure guesswork.
-function buildRound1Positions(r1Matches, r2Matches){
+// Once pairs are known, seeds are used only to decide WHERE each pair sits
+// (so seed 1 ends up at the very top and seed 2 anchors the bottom half, per
+// the standard convention) and which side of the pair renders first.
+function buildRound1Positions(r1Matches, r2Matches, seedMap){
   const numR1 = r1Matches.length;
   const positions = new Array(numR1).fill(null);
-  const used = new Set();
+  const confirmedPairs = []; // arrays of exactly 2 r1 indices
+  const loose = []; // r1 indices with no confirmed sibling yet
+  const usedIdx = new Set();
+
   if(r2Matches && r2Matches.length){
     const groupByR2 = new Map();
     r1Matches.forEach((m, i) => {
@@ -517,36 +547,47 @@ function buildRound1Positions(r1Matches, r2Matches){
       if(!groupByR2.has(r2Idx)) groupByR2.set(r2Idx, []);
       groupByR2.get(r2Idx).push(i);
     });
-    let slot = 0;
-    // Confirmed pairs first (both siblings already completed and linked).
     groupByR2.forEach(members => {
-      if(members.length === 2){
-        positions[slot] = r1Matches[members[0]];
-        positions[slot+1] = r1Matches[members[1]];
-        used.add(members[0]); used.add(members[1]);
-        slot += 2;
-      }
+      if(members.length === 2){ confirmedPairs.push(members); members.forEach(i => usedIdx.add(i)); }
     });
-    // One side confirmed, sibling not finished yet — place the known one, leave
-    // its neighbor slot for the leftover fill below.
-    const openSlots = [];
-    groupByR2.forEach(members => {
-      if(members.length === 1 && !used.has(members[0])){
-        positions[slot] = r1Matches[members[0]];
-        used.add(members[0]);
-        openSlots.push(slot + 1);
-        slot += 2;
-      }
-    });
-    const leftovers = r1Matches.filter((m,i) => !used.has(i));
-    let li = 0;
-    openSlots.forEach(s => { positions[s] = leftovers[li++] || null; });
-    for(let s = 0; s < numR1; s++){
-      if(!positions[s]) positions[s] = leftovers[li++] || null;
-    }
-  } else {
-    r1Matches.forEach((m,i) => { positions[i] = m; });
   }
+  r1Matches.forEach((m,i) => { if(!usedIdx.has(i)) loose.push(i); });
+
+  const numSlots = numR1 / 2;
+  const slotTemplate = seedSlotTemplate(numR1);
+  const matchSlotForSeed = seed => {
+    const idx = slotTemplate.indexOf(seed);
+    return idx === -1 ? -1 : Math.floor(idx / 2);
+  };
+  const slotGroups = new Array(numSlots).fill(null); // each: array of 1-2 r1 indices
+  const unplaced = [];
+
+  confirmedPairs.forEach(pair => {
+    const seed = Math.min(matchOwnSeed(r1Matches[pair[0]], seedMap), matchOwnSeed(r1Matches[pair[1]], seedMap));
+    const slot = seed === Infinity ? -1 : matchSlotForSeed(seed);
+    if(slot !== -1 && slot < numSlots && !slotGroups[slot]) slotGroups[slot] = pair;
+    else unplaced.push(pair);
+  });
+  // Pair up leftover loose (unresolved) matches two at a time so they still
+  // occupy a full slot each; any odd one out rides alone.
+  for(let i = 0; i < loose.length; i += 2){
+    unplaced.push(loose[i+1] !== undefined ? [loose[i], loose[i+1]] : [loose[i]]);
+  }
+  let ui = 0;
+  for(let s = 0; s < numSlots; s++){
+    if(!slotGroups[s]) slotGroups[s] = unplaced[ui++] || [];
+  }
+
+  slotGroups.forEach((group, k) => {
+    if(group.length === 2){
+      const [ia, ib] = group;
+      const better = matchOwnSeed(r1Matches[ia], seedMap) <= matchOwnSeed(r1Matches[ib], seedMap);
+      positions[2*k] = better ? r1Matches[ia] : r1Matches[ib];
+      positions[2*k+1] = better ? r1Matches[ib] : r1Matches[ia];
+    } else if(group.length === 1){
+      positions[2*k] = r1Matches[group[0]];
+    }
+  });
   return positions;
 }
 // Builds rounds[0..n] where each round is an array of API match objects (or null)
@@ -559,7 +600,8 @@ function buildBracketRounds(mainComps, orderLabels){
   const numR1 = r1Matches.length;
   if(numR1 < 2 || (numR1 & (numR1 - 1)) !== 0) return null; // needs a clean power-of-two draw
 
-  const positions = buildRound1Positions(r1Matches, byRound[orderLabels[1]] || []);
+  const seedMap = extractSeedMap(mainComps);
+  const positions = buildRound1Positions(r1Matches, byRound[orderLabels[1]] || [], seedMap);
 
   const rounds = [positions];
   let prev = positions;
