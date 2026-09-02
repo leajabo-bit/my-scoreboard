@@ -75,6 +75,17 @@
   .round-tabs{padding:0 0 10px;}
   .round-tab-btn{padding:6px 12px;font-size:12px;}
   .round-view{min-height:20px;}
+  .bracket{display:flex;align-items:flex-start;overflow:auto;max-height:65vh;padding:4px 4px 14px;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;}
+  .bracket-col{display:flex;flex-direction:column;flex:0 0 148px;margin-right:16px;}
+  .bracket-col:last-child{margin-right:4px;}
+  .bracket-col-title{font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);text-align:center;margin-bottom:8px;}
+  .bracket-match{margin-bottom:0;}
+  .bm{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12px;}
+  .bm.tracked{border-color:var(--highlight-border);background:var(--highlight);}
+  .bm-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bm-winner{font-weight:700;}
+  .bm-tbd{color:var(--muted);font-style:italic;}
+  .bm-score,.bm-time{font-size:10.5px;color:var(--muted);margin-top:3px;}
 </style>
 </head>
 <body>
@@ -430,9 +441,7 @@ function matchLineHtml(c){
   }
   return line;
 }
-function renderRoundsTabbed(comps, containerEl){
-  const mainComps = mainDrawOnly(comps);
-  if(!mainComps.length){ containerEl.innerHTML = '<div class="small">Draw not set yet.</div>'; return; }
+function chronologicalRoundOrder(mainComps){
   const order = [];
   const byRound = {};
   mainComps.slice().sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(c => {
@@ -440,6 +449,12 @@ function renderRoundsTabbed(comps, containerEl){
     if(!byRound[label]){ byRound[label] = []; order.push(label); }
     byRound[label].push(c);
   });
+  return {order, byRound};
+}
+function renderRoundsTabbed(comps, containerEl){
+  const mainComps = mainDrawOnly(comps);
+  if(!mainComps.length){ containerEl.innerHTML = '<div class="small">Draw not set yet.</div>'; return; }
+  const {order, byRound} = chronologicalRoundOrder(mainComps);
   const tabsHtml = order.map((label,i) =>
     '<button class="tab-btn round-tab-btn" data-round="' + i + '">' + esc(label) + '</button>'
   ).join('');
@@ -462,6 +477,133 @@ function renderRoundsTabbed(comps, containerEl){
   });
   renderMatches(defaultIdx);
 }
+
+// ---- Seeded bracket construction ----
+// Seeds aren't a structured field on this API; they're embedded in each match's
+// free-text summary, e.g. "(1) Carlos Alcaraz (ESP) bt (4) Novak Djokovic (SER) ...".
+function extractSeedMap(mainComps){
+  const map = {};
+  const re = /\((\d+)\)\s*([^()]+?)\s*\(([A-Z]{2,3})\)/g;
+  mainComps.forEach(c => {
+    const text = (c.notes && c.notes[0] && c.notes[0].text) || '';
+    re.lastIndex = 0;
+    let m;
+    while((m = re.exec(text))){
+      map[normalize(m[2].trim())] = parseInt(m[1], 10);
+    }
+  });
+  return map;
+}
+// Standard recursive tournament seeding order: seed 1 at slot 0, seed 2 at the
+// last slot, each half built so top seeds only meet in later rounds.
+function seedSlotTemplate(size){
+  let seeds = [1];
+  while(seeds.length < size){
+    const n = seeds.length * 2;
+    const next = [];
+    seeds.forEach(s => { next.push(s); next.push(n + 1 - s); });
+    seeds = next;
+  }
+  return seeds;
+}
+function winnerNormName(m){
+  if(!m) return null;
+  const w = m.competitors.find(c => c.winner);
+  return w && w.athlete ? normalize(w.athlete.displayName) : null;
+}
+// Builds rounds[0..n] where each round is an array of API match objects (or null)
+// positioned so that a match's two children are always at [2j, 2j+1] of the
+// previous round — a real bracket tree, not just a grouped list.
+function buildBracketRounds(mainComps, orderLabels){
+  const byRound = {};
+  mainComps.forEach(c => (byRound[c.round ? c.round.displayName : 'Unknown'] = byRound[c.round ? c.round.displayName : 'Unknown'] || []).push(c));
+  const r1Matches = byRound[orderLabels[0]] || [];
+  const numR1 = r1Matches.length;
+  if(numR1 < 2 || (numR1 & (numR1 - 1)) !== 0) return null; // needs a clean power-of-two draw
+
+  const seedMap = extractSeedMap(mainComps);
+  const template = seedSlotTemplate(numR1 * 2);
+  const positions = new Array(numR1).fill(null);
+  const used = new Set();
+  for(let slot = 0; slot < template.length; slot++){
+    const seed = template[slot];
+    const matchIdx = Math.floor(slot / 2);
+    if(positions[matchIdx]) continue;
+    const idx = r1Matches.findIndex((m,i) => !used.has(i) && m.competitors.some(co => co.athlete && seedMap[normalize(co.athlete.displayName)] === seed));
+    if(idx !== -1){ positions[matchIdx] = r1Matches[idx]; used.add(idx); }
+  }
+  const leftovers = r1Matches.filter((m,i) => !used.has(i));
+  let li = 0;
+  for(let j = 0; j < numR1; j++){
+    if(!positions[j]) positions[j] = leftovers[li++] || null;
+  }
+
+  const rounds = [positions];
+  let prev = positions;
+  for(let r = 1; r < orderLabels.length; r++){
+    const apiMatches = byRound[orderLabels[r]] || [];
+    const size = prev.length / 2;
+    const cur = new Array(size).fill(null);
+    const usedR = new Set();
+    for(let j = 0; j < size; j++){
+      const wa = winnerNormName(prev[2*j]);
+      const wb = winnerNormName(prev[2*j+1]);
+      if(!wa && !wb) continue;
+      const idx = apiMatches.findIndex((m,i) => !usedR.has(i) && m.competitors.some(co => co.athlete && (normalize(co.athlete.displayName) === wa || normalize(co.athlete.displayName) === wb)));
+      if(idx !== -1){ cur[j] = apiMatches[idx]; usedR.add(idx); }
+    }
+    const leftover2 = apiMatches.filter((m,i) => !usedR.has(i));
+    let li2 = 0;
+    for(let j = 0; j < size; j++){
+      if(!cur[j]) cur[j] = leftover2[li2++] || null;
+    }
+    rounds.push(cur);
+    prev = cur;
+  }
+  return rounds;
+}
+function scoreLineText(m){
+  const [a, b] = m.competitors;
+  if(!a || !b || !a.linescores || !a.linescores.length) return '';
+  return a.linescores.map((ls,i) => ls.value + '-' + (b.linescores[i] ? b.linescores[i].value : '')).join(' ');
+}
+function bracketMatchHtml(m, seedMap){
+  if(!m){
+    return '<div class="bm-line bm-tbd">TBD</div><div class="bm-line bm-tbd">TBD</div>';
+  }
+  const tracked = m.competitors.some(co => co.athlete && isTrackedName(co.athlete.displayName));
+  const lines = m.competitors.map(co => {
+    const name = co.athlete ? co.athlete.displayName : 'TBD';
+    const seed = co.athlete ? seedMap[normalize(co.athlete.displayName)] : null;
+    return '<div class="bm-line' + (co.winner ? ' bm-winner' : '') + '">' + (seed ? '(' + seed + ') ' : '') + esc(name) + '</div>';
+  }).join('');
+  const footer = m.status.type.state === 'pre'
+    ? '<div class="bm-time">' + fmtTime(new Date(m.date)) + '</div>'
+    : ('<div class="bm-score">' + esc(scoreLineText(m)) + (m.status.type.state === 'in' ? ' <span class="pill live" style="margin-left:4px;">' + esc(m.status.type.shortDetail) + '</span>' : '') + '</div>');
+  return '<div class="bm' + (tracked ? ' tracked' : '') + '">' + lines + footer + '</div>';
+}
+function renderBracket(comps, containerEl){
+  const mainComps = mainDrawOnly(comps);
+  if(!mainComps.length){ containerEl.innerHTML = '<div class="small">Draw not set yet.</div>'; return; }
+  const {order} = chronologicalRoundOrder(mainComps);
+  const rounds = buildBracketRounds(mainComps, order);
+  if(!rounds){ renderRoundsTabbed(comps, containerEl); return; }
+  const seedMap = extractSeedMap(mainComps);
+  const MATCH_H = 58;
+  const MAX_GAP_EXP = 4; // cap exponential spacing beyond this so late rounds don't need huge vertical scrolling
+  let html = '<div class="bracket">';
+  rounds.forEach((roundMatches, r) => {
+    const gap = MATCH_H * (Math.pow(2, Math.min(r, MAX_GAP_EXP)) - 1);
+    html += '<div class="bracket-col"><div class="bracket-col-title">' + esc(order[r] || '') + '</div>';
+    roundMatches.forEach((m, j) => {
+      const marginTop = j === 0 ? gap / 2 : gap;
+      html += '<div class="bracket-match" style="margin-top:' + marginTop + 'px;">' + bracketMatchHtml(m, seedMap) + '</div>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  containerEl.innerHTML = html;
+}
 async function loadFullDraw(slam, containerEl){
   containerEl.innerHTML = '<div class="empty-note"><span class="spinner"></span> Loading full draw…</div>';
   try{
@@ -469,7 +611,7 @@ async function loadFullDraw(slam, containerEl){
     const event = data.events && data.events[0];
     const singles = event ? (event.groupings || []).find(g => g.grouping.slug === 'mens-singles') : null;
     const comps = singles ? singles.competitions : [];
-    renderRoundsTabbed(comps, containerEl);
+    renderBracket(comps, containerEl);
   }catch(e){
     containerEl.innerHTML = '<div class="error-note">Could not load the full draw (' + e.message + ').</div>';
   }
