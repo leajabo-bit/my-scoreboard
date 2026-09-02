@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My Scores">
+<title>My Scores</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --text:#14161a; --muted:#6b7280;
+    --accent:#c8102e; --line:#e5e7eb; --live:#16a34a; --highlight:#fff4e5; --highlight-border:#f59e0b;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0f1115; --card:#181b21; --text:#eceef1; --muted:#9aa1ac; --line:#2a2e37; --highlight:#2a2210; --highlight-border:#f59e0b; }
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding-bottom:40px;}
+  header{position:sticky;top:0;z-index:10;background:var(--bg);display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);}
+  header h1{font-size:18px;margin:0;}
+  #refreshBtn{background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 12px;font-size:14px;}
+  #refreshBtn:active{opacity:.7;}
+  main{max-width:640px;margin:0 auto;padding:8px 12px;}
+  section{margin:22px 0;}
+  section h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 10px 2px;}
+  .cards{display:flex;flex-direction:column;gap:8px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
+  .card.tracked{background:var(--highlight);border-color:var(--highlight-border);}
+  .row-between{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .small{font-size:12px;color:var(--muted);}
+  .pill{font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--line);color:var(--muted);white-space:nowrap;}
+  .pill.live{background:#16a34a22;color:var(--live);}
+  .pill.live::before{content:"● ";}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px;}
+  thead th{position:sticky;top:0;background:var(--card);}
+  th,td{padding:7px 6px;text-align:center;border-bottom:1px solid var(--line);}
+  th:first-child,td:first-child{text-align:left;padding-left:10px;}
+  td.team-cell{text-align:left;}
+  tr.tracked td{background:var(--highlight);font-weight:600;}
+  tbody tr:last-child td{border-bottom:none;}
+  .match-line{font-size:14px;margin-top:4px;}
+  .result-win{color:var(--live);font-weight:600;}
+  .result-loss{color:var(--muted);}
+  footer{max-width:640px;margin:24px auto 0;padding:0 16px;color:var(--muted);font-size:12px;text-align:center;}
+  .error-note{font-size:12px;color:var(--muted);font-style:italic;}
+  .empty-note{font-size:13px;color:var(--muted);}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>My Scores</h1>
+  <button id="refreshBtn" onclick="loadAll()">⟳ Refresh</button>
+</header>
+
+<main>
+
+  <section id="sec-players">
+    <h2>Alcaraz · Sinner · Jódar</h2>
+    <div id="playersCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
+  </section>
+
+  <section id="sec-laliga">
+    <h2>La Liga — Your Clubs</h2>
+    <div id="clubCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
+  </section>
+
+  <section id="sec-laliga-table">
+    <h2>La Liga Table</h2>
+    <div id="laligaTableWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+  </section>
+
+  <section id="sec-pl-table">
+    <h2>Premier League Table</h2>
+    <div id="plTableWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+  </section>
+
+  <section id="sec-atp-rank">
+    <h2>ATP Rankings</h2>
+    <div id="atpRankWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+  </section>
+
+  <section id="sec-slams">
+    <h2>Grand Slams &amp; ATP Finals — 2026</h2>
+    <div id="slamCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
+  </section>
+
+</main>
+
+<footer id="footerStatus">Loading…</footer>
+
+<script>
+const TRACKED_PLAYERS = ['Carlos Alcaraz', 'Jannik Sinner', 'Rafael Jodar'];
+const LALIGA_CLUBS = [
+  {id:'86', name:'Real Madrid'},
+  {id:'83', name:'Barcelona'},
+  {id:'93', name:'Athletic Club'}
+];
+// Base ESPN tournament ids (stable across years) + a date known to fall inside that
+// year's tournament window, used to look the event up via ?dates=YYYYMMDD.
+const SLAMS_2026 = [
+  {id: 154, name: 'Australian Open', probeDate: '20260119'},
+  {id: 172, name: 'Roland Garros',   probeDate: '20260525'},
+  {id: 188, name: 'Wimbledon',       probeDate: '20260705'},
+  {id: 189, name: 'US Open',         probeDate: '20260830'},
+  {id: 339, name: 'ATP Finals',      probeDate: '20261115'}
+];
+
+function normalize(s){
+  return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+}
+function isTrackedName(name){
+  const n = normalize(name);
+  return TRACKED_PLAYERS.some(p => normalize(p) === n);
+}
+async function fetchJson(url){
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+function statMap(entryStats){
+  const m = {};
+  for(const s of entryStats) m[s.name] = s.displayValue;
+  return m;
+}
+function fmtTime(d){
+  return d.toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+}
+function setSectionError(el, msg){
+  el.innerHTML = '<div class="card error-note">Could not load this section (' + msg + ').</div>';
+}
+
+// ---------- La Liga / Premier League standings ----------
+async function loadStandingsTable(slug, wrapEl, highlightIds){
+  try{
+    const data = await fetchJson('https://site.api.espn.com/apis/v2/sports/soccer/' + slug + '/standings');
+    const entries = data.children[0].standings.entries.slice();
+    entries.sort((a,b) => parseInt(statMap(a.stats).rank) - parseInt(statMap(b.stats).rank));
+    let html = '<table><thead><tr><th>#</th><th>Club</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr></thead><tbody>';
+    for(const e of entries){
+      const s = statMap(e.stats);
+      const tracked = highlightIds && highlightIds.includes(e.team.id);
+      html += '<tr' + (tracked ? ' class="tracked"' : '') + '>' +
+        '<td>' + s.rank + '</td>' +
+        '<td class="team-cell">' + e.team.displayName + '</td>' +
+        '<td>' + s.gamesPlayed + '</td>' +
+        '<td>' + s.wins + '</td>' +
+        '<td>' + s.ties + '</td>' +
+        '<td>' + s.losses + '</td>' +
+        '<td>' + s.pointDifferential + '</td>' +
+        '<td><strong>' + s.points + '</strong></td>' +
+        '</tr>';
+    }
+    html += '</tbody></table>';
+    wrapEl.innerHTML = html;
+  }catch(e){
+    setSectionError(wrapEl, e.message);
+  }
+}
+
+// ---------- Club results (La Liga clubs) ----------
+async function loadClubCards(){
+  const el = document.getElementById('clubCards');
+  try{
+    const results = await Promise.all(LALIGA_CLUBS.map(async club => {
+      try{
+        const data = await fetchJson('https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/teams/' + club.id + '/schedule');
+        const events = (data.events || []).slice().sort((a,b) => new Date(b.date) - new Date(a.date));
+        const match = events[0];
+        return {club, match};
+      }catch(e){
+        return {club, error: e.message};
+      }
+    }));
+    el.innerHTML = results.map(r => {
+      if(r.error) return '<div class="card"><div class="row-between"><strong>' + r.club.name + '</strong><span class="pill">n/a</span></div><div class="error-note">' + r.error + '</div></div>';
+      if(!r.match) return '<div class="card"><div class="row-between"><strong>' + r.club.name + '</strong></div><div class="empty-note">No recent match found.</div></div>';
+      const comp = r.match.competitions[0];
+      const state = comp.status.type.state; // 'pre' | 'in' | 'post'
+      const isLive = state === 'in';
+      const own = comp.competitors.find(c => c.team.id === r.club.id);
+      const opp = comp.competitors.find(c => c.team.id !== r.club.id);
+      const ownScore = own && own.score ? own.score.displayValue : '-';
+      const oppScore = opp && opp.score ? opp.score.displayValue : '-';
+      const venue = own && own.homeAway === 'home' ? 'vs' : '@';
+      const pillLabel = isLive ? comp.status.type.shortDetail : (state === 'post' ? comp.status.type.shortDetail : fmtTime(new Date(r.match.date)));
+      const resultClass = state === 'post' ? (own.winner ? 'result-win' : (opp.winner ? 'result-loss' : '')) : '';
+      return '<div class="card' + (isLive ? ' tracked' : '') + '">' +
+        '<div class="row-between"><strong>' + r.club.name + '</strong><span class="pill' + (isLive?' live':'') + '">' + pillLabel + '</span></div>' +
+        '<div class="match-line ' + resultClass + '">' + venue + ' ' + (opp ? opp.team.displayName : '?') + ' — <strong>' + ownScore + ' - ' + oppScore + '</strong></div>' +
+        '</div>';
+    }).join('');
+  }catch(e){
+    setSectionError(el, e.message);
+  }
+}
+
+// ---------- ATP rankings ----------
+async function loadAtpRankings(){
+  const el = document.getElementById('atpRankWrap');
+  try{
+    const data = await fetchJson('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/rankings');
+    const atp = (data.rankings || []).find(r => r.type === 'atp') || data.rankings[0];
+    const ranks = atp.ranks.slice().sort((a,b) => a.current - b.current);
+    const top = ranks.slice(0, 20);
+    const trackedNotInTop = ranks.filter(r => isTrackedName(r.athlete.displayName) && !top.includes(r));
+    const rowsHtml = rows => rows.map(r => {
+      const tracked = isTrackedName(r.athlete.displayName);
+      return '<tr' + (tracked ? ' class="tracked"' : '') + '>' +
+        '<td>' + r.current + '</td>' +
+        '<td class="team-cell">' + r.athlete.displayName + '</td>' +
+        '<td>' + r.points.toLocaleString() + '</td>' +
+        '</tr>';
+    }).join('');
+    let html = '<table><thead><tr><th>#</th><th>Player</th><th>Points</th></tr></thead><tbody>' + rowsHtml(top);
+    if(trackedNotInTop.length){
+      html += '<tr><td colspan="3" class="small" style="text-align:left;padding-top:8px;">— outside top 20 —</td></tr>' + rowsHtml(trackedNotInTop);
+    }
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }catch(e){
+    setSectionError(el, e.message);
+  }
+}
+
+// ---------- Live/recent tennis results for tracked players (current tour event) ----------
+async function loadPlayerCards(){
+  const el = document.getElementById('playersCards');
+  try{
+    const data = await fetchJson('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard');
+    const event = data.events && data.events[0];
+    if(!event){ el.innerHTML = '<div class="card empty-note">No ATP event currently in progress.</div>'; return; }
+    const singles = (event.groupings || []).find(g => g.grouping.slug === 'mens-singles');
+    const comps = singles ? singles.competitions : [];
+    const matches = {};
+    for(const p of TRACKED_PLAYERS) matches[p] = null;
+    for(const c of comps){
+      for(const competitor of c.competitors){
+        const name = competitor.athlete && competitor.athlete.displayName;
+        if(name && isTrackedName(name)){
+          const key = TRACKED_PLAYERS.find(p => normalize(p) === normalize(name));
+          const existing = matches[key];
+          if(!existing || new Date(c.date) > new Date(existing.date)) matches[key] = c;
+        }
+      }
+    }
+    el.innerHTML = TRACKED_PLAYERS.map(p => {
+      const c = matches[p];
+      if(!c) return '<div class="card"><div class="row-between"><strong>' + p + '</strong><span class="pill">not in draw</span></div><div class="empty-note">Not competing at ' + event.name + ' right now.</div></div>';
+      const state = c.status.type.state;
+      const isLive = state === 'in';
+      const roundLabel = c.round ? c.round.displayName : '';
+      const note = (c.notes && c.notes[0] && c.notes[0].text) || '';
+      return '<div class="card' + (isLive ? ' tracked' : '') + '">' +
+        '<div class="row-between"><strong>' + p + '</strong><span class="pill' + (isLive?' live':'') + '">' + (isLive ? c.status.type.shortDetail : c.status.type.description) + '</span></div>' +
+        '<div class="small">' + event.name + (roundLabel ? ' · ' + roundLabel : '') + '</div>' +
+        '<div class="match-line">' + (note || 'Match scheduled') + '</div>' +
+        '</div>';
+    }).join('');
+  }catch(e){
+    setSectionError(el, e.message);
+  }
+}
+
+// ---------- Grand Slams + ATP Finals ----------
+async function loadSlamCard(slam){
+  try{
+    const data = await fetchJson('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=' + slam.probeDate);
+    const event = data.events && data.events[0];
+    if(!event || !event.name || !event.name.toLowerCase().includes(slam.name.toLowerCase().split(' ')[0].toLowerCase())){
+      return '<div class="card"><div class="row-between"><strong>' + slam.name + '</strong><span class="pill">not started</span></div>' +
+        '<div class="empty-note">No data yet for this date window.</div></div>';
+    }
+    const singles = (event.groupings || []).find(g => g.grouping.slug === 'mens-singles');
+    const comps = singles ? singles.competitions : [];
+    const final = comps.find(c => c.round && c.round.displayName === 'Final' && c.status.type.completed);
+    let statusLine;
+    if(final){
+      const winner = final.competitors.find(c => c.winner);
+      statusLine = '<span class="pill">Completed</span> Champion: <strong>' + (winner ? winner.athlete.displayName : '?') + '</strong>';
+    } else {
+      const inProgress = comps.filter(c => c.status.type.state !== 'pre');
+      if(inProgress.length){
+        statusLine = '<span class="pill live">In progress</span> Latest round: ' + inProgress[inProgress.length-1].round.displayName;
+      } else {
+        statusLine = '<span class="pill">Not started</span>';
+      }
+    }
+    const playerLines = comps.length === 0 ? '<div class="small">Draw not set yet.</div>' : TRACKED_PLAYERS.map(p => {
+      const own = comps.filter(c => c.competitors.some(co => co.athlete && isTrackedName(co.athlete.displayName) && normalize(co.athlete.displayName) === normalize(p)));
+      if(!own.length) return '<div class="small">' + p + ': did not compete</div>';
+      own.sort((a,b) => new Date(b.date) - new Date(a.date));
+      const last = own[0];
+      const note = (last.notes && last.notes[0] && last.notes[0].text) || '';
+      const round = last.round ? last.round.displayName : '';
+      return '<div class="small"><strong>' + p + '</strong> — ' + round + (note ? ': ' + note : '') + '</div>';
+    }).join('');
+    return '<div class="card"><div class="row-between"><strong>' + slam.name + '</strong></div>' +
+      '<div class="match-line" style="margin-bottom:6px;">' + statusLine + '</div>' + playerLines + '</div>';
+  }catch(e){
+    return '<div class="card"><div class="row-between"><strong>' + slam.name + '</strong><span class="pill">error</span></div>' +
+      '<div class="error-note">' + e.message + '</div></div>';
+  }
+}
+async function loadSlamCards(){
+  const el = document.getElementById('slamCards');
+  try{
+    const cards = await Promise.all(SLAMS_2026.map(loadSlamCard));
+    el.innerHTML = cards.join('');
+  }catch(e){
+    setSectionError(el, e.message);
+  }
+}
+
+// ---------- Orchestration ----------
+async function loadAll(){
+  document.getElementById('footerStatus').textContent = 'Refreshing…';
+  await Promise.allSettled([
+    loadPlayerCards(),
+    loadClubCards(),
+    loadStandingsTable('esp.1', document.getElementById('laligaTableWrap'), LALIGA_CLUBS.map(c => c.id)),
+    loadStandingsTable('eng.1', document.getElementById('plTableWrap'), []),
+    loadAtpRankings(),
+    loadSlamCards()
+  ]);
+  document.getElementById('footerStatus').textContent = 'Last updated ' + new Date().toLocaleString();
+}
+loadAll();
+</script>
+</body>
+</html>
