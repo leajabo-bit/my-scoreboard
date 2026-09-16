@@ -223,12 +223,19 @@ function statMap(entryStats){
 function fmtTime(d){
   return d.toLocaleString(undefined, {weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
 }
-function fmtDateRange(){
-  const today = new Date();
-  const from = new Date(today); from.setDate(from.getDate() - 14);
-  const to = new Date(today); to.setDate(to.getDate() + 21);
-  const fmt = d => d.toISOString().slice(0,10).replace(/-/g,'');
-  return fmt(from) + '-' + fmt(to);
+// ESPN's soccer scoreboard endpoint stopped accepting the "dates=FROM-TO"
+// range syntax (it now 400s on every range, even a single day span) — only a
+// single date ("dates=YYYYMMDD") or a bare year ("dates=YYYY", which is a
+// literal calendar-year filter, not "this season") still work. So a window
+// spanning a year boundary needs one request per year involved, merged.
+async function fetchSoccerScoreboardYears(slug, years, limit){
+  const results = await Promise.all(years.map(y =>
+    fetchJson('https://site.api.espn.com/apis/site/v2/sports/soccer/' + slug + '/scoreboard?dates=' + y + '&limit=' + (limit || 500)).catch(() => ({events: []}))
+  ));
+  const seen = new Set();
+  const events = [];
+  results.forEach(r => (r.events || []).forEach(e => { if(!seen.has(e.id)){ seen.add(e.id); events.push(e); } }));
+  return events;
 }
 function setSectionError(el, msg){
   el.innerHTML = '<div class="card error-note">Could not load this section (' + msg + ').</div>';
@@ -299,8 +306,8 @@ function goalLine(details, clubIds){
 async function loadLeagueClubCards(slug, clubs, elId){
   const el = document.getElementById(elId);
   try{
-    const data = await fetchJson('https://site.api.espn.com/apis/site/v2/sports/soccer/' + slug + '/scoreboard?dates=' + fmtDateRange() + '&limit=300');
-    const events = data.events || [];
+    const years = [...new Set([new Date().getFullYear(), new Date().getFullYear() + 1])];
+    const events = await fetchSoccerScoreboardYears(slug, years, 500);
     el.innerHTML = clubs.map(club => {
       const clubEvents = events.filter(ev => ev.competitions[0].competitors.some(c => c.team.id === club.id));
       if(!clubEvents.length){
@@ -870,18 +877,23 @@ async function loadUcl(){
     return;
   }
   renderStandingsHtml(standingsData, tableEl, followedIds);
-  const toDateStr = iso => iso.slice(0,10).replace(/-/g,'');
-  const from = toDateStr(standingsData.season.startDate);
-  const to = toDateStr(standingsData.season.endDate);
-  let seasonData;
+  // "dates=YYYY" is a literal calendar-year filter, not "this season" — the
+  // season spans two calendar years (e.g. Jul 2026-Jul 2027), so fetch both
+  // years covered and then keep only events that actually belong to this
+  // specific season (a Jan 2026 date could be the tail of the PREVIOUS season).
+  const seasonYear = standingsData.season.year;
+  const startYear = new Date(standingsData.season.startDate).getFullYear();
+  const endYear = new Date(standingsData.season.endDate).getFullYear();
+  const years = [...new Set([startYear, endYear])];
+  let events;
   try{
-    seasonData = await fetchJson('https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/scoreboard?dates=' + from + '-' + to + '&limit=500');
+    const allEvents = await fetchSoccerScoreboardYears('uefa.champions', years, 500);
+    events = allEvents.filter(e => e.season.year === seasonYear);
   }catch(e){
     setSectionError(resultsEl, e.message);
     return;
   }
   try{
-    const events = seasonData.events || [];
     const leaguePhase = events.filter(e => e.season.slug === 'league-phase').sort((a,b)=>new Date(a.date)-new Date(b.date));
     const stages = {};
     leaguePhase.forEach((e,i) => {
