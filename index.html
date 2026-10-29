@@ -135,10 +135,6 @@
     </div>
 
     <div id="subtab-spain" class="subtab-panel">
-      <section id="sec-laliga">
-        <h2>La Liga — Your Clubs</h2>
-        <div id="laligaClubCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
-      </section>
       <section id="sec-laliga-all">
         <h2>La Liga — All Matches</h2>
         <div id="laligaAllWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
@@ -599,44 +595,92 @@ function parseRaceRank(label){
   else if(/^[–—-]$/.test(label.trim())) status = 'inj';
   return {rank: num ? parseInt(num, 10) : null, status};
 }
+// Fetch with a timeout, so a stalled mobile connection ends in an error (and a
+// "Try again" button) instead of an endless spinner.
+async function fetchTimeout(url, ms){
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), ms || 20000);
+  try{
+    return await fetch(url, {signal: ctl.signal});
+  }catch(e){
+    throw new Error(e.name === 'AbortError' ? 'timed out' : e.message);
+  }finally{
+    clearTimeout(timer);
+  }
+}
+// Wikipedia's action API can return a single section of an article. The race
+// table sits in a ~70KB section of a 1.2MB article, so this is much lighter than
+// downloading the whole page (which matters on a phone connection).
+async function wikiParse(title, extra){
+  const res = await fetchTimeout('https://en.wikipedia.org/w/api.php?origin=*&format=json&formatversion=2&action=parse&page=' + encodeURIComponent(title) + '&' + extra);
+  if(!res.ok) throw new Error('Wikipedia HTTP ' + res.status);
+  const j = await res.json();
+  if(!j.parse) throw new Error('Wikipedia: ' + ((j.error && j.error.info) || 'no data'));
+  return j.parse;
+}
+function htmlDoc(html){
+  return new DOMParser().parseFromString(html, 'text/html');
+}
+function findRaceTable(doc){
+  return [...doc.querySelectorAll('table.wikitable')].find(t => {
+    const head = ((t.querySelector('tr') || {}).textContent || '').replace(/\s+/g, ' ');
+    return /Player/.test(head) && /Total points/.test(head) && /Grand Slam/.test(head);
+  }) || null;
+}
+function parseRaceDocs(tableDoc, infoDoc){
+  const table = findRaceTable(tableDoc);
+  if(!table) throw new Error('race table not found');
+  const rows = [];
+  table.querySelectorAll('tr').forEach(tr => {
+    const cells = [...tr.children].map(c => c.textContent.replace(/\s+/g, ' ').trim());
+    if(cells.length === 1){ if(/alternate/i.test(cells[0])) rows.push({alternates: true}); return; }
+    if(cells.length < 6 || /^(Rank|AUS)$/.test(cells[0])) return;
+    const total = parseInt(cells[cells.length - 3].replace(/,/g, ''), 10);
+    if(isNaN(total)) return;
+    rows.push(Object.assign(parseRaceRank(cells[0]), {
+      name: cells[1], total, tourn: parseInt(cells[cells.length - 2], 10), titles: parseInt(cells[cells.length - 1], 10)
+    }));
+  });
+  const asOfRaw = ((tableDoc.body.textContent || '').match(/Updated as of (\d{1,2}\s+\w+\s+\d{4})/) || [])[1];
+  const asOf = asOfRaw ? asOfRaw.replace(/\s+/g, ' ') : null; // Wikipedia uses non-breaking spaces here
+  let finalsDates = null;
+  const info = infoDoc && infoDoc.querySelector('table.infobox');
+  if(info){
+    [...info.querySelectorAll('tr')].forEach(tr => {
+      const th = tr.querySelector('th');
+      const td = tr.querySelector('td');
+      if(th && td && /^Date/i.test(th.textContent.trim())) finalsDates = td.textContent.replace(/\s+/g, ' ').trim();
+    });
+  }
+  return {rows, asOf, finalsDates};
+}
+async function loadRaceLight(title){
+  // Dates of the tournament are in the infobox of the lead section; optional.
+  const infoPromise = wikiParse(title, 'prop=text&section=0').then(p => htmlDoc(p.text)).catch(() => null);
+  const sections = (await wikiParse(title, 'prop=sections')).sections;
+  // The singles race table is the first subsection under "Points breakdown".
+  const pb = sections.findIndex(s => /Points breakdown/i.test(s.line));
+  const candidates = [];
+  if(pb !== -1 && sections[pb + 1]) candidates.push(sections[pb + 1].index);
+  sections.forEach(s => { if(/^Singles$/i.test(s.line) && !candidates.includes(s.index)) candidates.push(s.index); });
+  let tableDoc = null;
+  for(const idx of candidates){
+    const doc = htmlDoc((await wikiParse(title, 'prop=text&section=' + idx)).text);
+    if(findRaceTable(doc)){ tableDoc = doc; break; }
+  }
+  if(!tableDoc) throw new Error('race table not found');
+  return parseRaceDocs(tableDoc, await infoPromise);
+}
+async function loadRaceFull(title){
+  const res = await fetchTimeout('https://en.wikipedia.org/api/rest_v1/page/html/' + encodeURIComponent(title), 30000);
+  if(!res.ok) throw new Error('Wikipedia HTTP ' + res.status);
+  const doc = htmlDoc(await res.text());
+  return parseRaceDocs(doc, doc);
+}
 function getRaceData(){
   if(!raceCache){
-    raceCache = (async () => {
-      const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/html/' + encodeURIComponent(TENNIS_YEAR + ' ATP Finals'));
-      if(!res.ok) throw new Error('Wikipedia HTTP ' + res.status);
-      const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
-      const table = [...doc.querySelectorAll('table.wikitable')].find(t => {
-        const head = ((t.querySelector('tr') || {}).textContent || '').replace(/\s+/g, ' ');
-        return /Player/.test(head) && /Total points/.test(head) && /Grand Slam/.test(head);
-      });
-      if(!table) throw new Error('race table not found');
-      const rows = [];
-      table.querySelectorAll('tr').forEach(tr => {
-        const cells = [...tr.children].map(c => c.textContent.replace(/\s+/g, ' ').trim());
-        if(cells.length === 1){ if(/alternate/i.test(cells[0])) rows.push({alternates: true}); return; }
-        if(cells.length < 6 || /^(Rank|AUS)$/.test(cells[0])) return;
-        const total = parseInt(cells[cells.length - 3].replace(/,/g, ''), 10);
-        if(isNaN(total)) return;
-        rows.push(Object.assign(parseRaceRank(cells[0]), {
-          name: cells[1], total, tourn: parseInt(cells[cells.length - 2], 10), titles: parseInt(cells[cells.length - 1], 10)
-        }));
-      });
-      const text = doc.body.textContent || '';
-      const asOfRaw = (text.match(/Updated as of (\d{1,2}\s+\w+\s+\d{4})/) || [])[1];
-      const asOf = asOfRaw ? asOfRaw.replace(/\s+/g, ' ') : null; // Wikipedia uses non-breaking spaces here
-      let finalsDates = null;
-      const info = doc.querySelector('table.infobox');
-      if(info){
-        [...info.querySelectorAll('tr')].forEach(tr => {
-          const th = tr.querySelector('th');
-          if(th && /^Date/i.test(th.textContent.trim())){
-            const td = tr.querySelector('td');
-            if(td) finalsDates = td.textContent.replace(/\s+/g, ' ').trim();
-          }
-        });
-      }
-      return {rows, asOf, finalsDates};
-    })();
+    const title = TENNIS_YEAR + ' ATP Finals';
+    raceCache = loadRaceLight(title).catch(() => loadRaceFull(title));
     raceCache.catch(() => { raceCache = null; });
   }
   return raceCache;
@@ -669,7 +713,9 @@ async function loadRace(){
   try{
     el.innerHTML = renderRaceTable(await getRaceData());
   }catch(e){
-    setSectionError(el, e.message);
+    el.innerHTML = '<div class="card error-note">Could not load the Race to Turin (' + esc(e.message) + '). ' +
+      '<button class="seg-btn" id="raceRetry" style="border:1px solid var(--line);border-radius:8px;margin-left:6px;">Try again</button></div>';
+    document.getElementById('raceRetry').addEventListener('click', () => { raceCache = null; loadRace(); });
   }
 }
 document.querySelectorAll('#rankToggle .seg-btn').forEach(btn => btn.addEventListener('click', () => {
@@ -1501,7 +1547,6 @@ function refreshRaceIfShown(){
 }
 const PANELS = {
   'football/spain': () => Promise.allSettled([
-    loadLeagueClubCards('esp.1', LALIGA_CLUBS, 'laligaClubCards'),
     loadLaLigaAll(),
     loadStandingsTable('esp.1', document.getElementById('laligaTableWrap'), LALIGA_CLUBS.map(c => c.id)),
     loadTopScorers('esp.1', document.getElementById('laligaScorersWrap'))
