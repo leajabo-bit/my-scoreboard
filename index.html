@@ -40,6 +40,8 @@
   th:first-child,td:first-child{text-align:left;padding-left:10px;}
   td.team-cell{text-align:left;}
   tr.tracked td{background:var(--highlight);font-weight:600;}
+  tr.tracked.fb td{font-weight:400;}
+  .rm{font-weight:800;}
   tbody tr:last-child td{border-bottom:none;}
   .match-line{font-size:14px;margin-top:4px;}
   .goal-line{font-size:12.5px;color:var(--muted);margin-top:3px;}
@@ -82,6 +84,32 @@
   .bm-winner{font-weight:700;}
   .bm-tbd{color:var(--muted);font-style:italic;}
   .bm-score,.bm-time{font-size:11.5px;color:var(--muted);margin-top:3px;}
+  .tennis-subtabs{padding-top:6px;}
+  .tpanel{display:none;}
+  .tpanel.active{display:block;}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:0 0 10px;background:var(--card);}
+  .seg-btn{border:0;background:transparent;color:var(--muted);padding:7px 14px;font-size:13px;font-weight:600;}
+  .seg-btn.active{background:var(--accent);color:#fff;}
+  .md-nav{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .md-btn{flex:0 0 auto;width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:18px;}
+  .md-btn:disabled{opacity:.35;}
+  .md-select{flex:1;min-width:0;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:14px;padding:0 10px;}
+  .mrow{padding:9px 0;border-bottom:1px solid var(--line);}
+  .mrow:last-child{border-bottom:none;}
+  .mrow.tracked{background:var(--highlight);margin:0 -14px;padding:9px 14px;}
+  .mline{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;font-size:14px;}
+  .mline .home{text-align:right;}
+  .mline .score{font-weight:700;min-width:46px;text-align:center;}
+  .msub{font-size:11.5px;color:var(--muted);text-align:center;margin-top:2px;}
+  .mrow .goal-line{text-align:center;}
+  .q-tag{font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:6px;vertical-align:1px;}
+  .q-tag.q{background:#16a34a22;color:var(--live);}
+  .q-tag.out{background:var(--line);color:var(--muted);}
+  .q-tag.inj{background:#dc262622;color:#dc2626;}
+  .legend{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.5;}
+  .grp-title{font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin:14px 2px 6px;}
+  .alt-row td{background:var(--bg);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;text-align:left;}
+  .small.next{margin-left:0;}
 </style>
 </head>
 <body>
@@ -110,6 +138,10 @@
       <section id="sec-laliga">
         <h2>La Liga — Your Clubs</h2>
         <div id="laligaClubCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
+      </section>
+      <section id="sec-laliga-all">
+        <h2>La Liga — All Matches</h2>
+        <div id="laligaAllWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
       </section>
       <section id="sec-laliga-table">
         <h2>La Liga Table</h2>
@@ -148,20 +180,52 @@
   </div>
 
   <div id="tab-tennis" class="tab-panel">
-    <section id="sec-players">
-      <h2>Alcaraz · Sinner · Jódar</h2>
-      <div id="playersCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
-    </section>
 
-    <section id="sec-atp-rank">
-      <h2>ATP Rankings</h2>
-      <div id="atpRankWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
-    </section>
+    <div class="tabs tennis-subtabs">
+      <button class="tab-btn" data-tsub="overview">Overview</button>
+      <button class="tab-btn" data-tsub="slams">Slams</button>
+      <button class="tab-btn" data-tsub="masters">Masters</button>
+      <button class="tab-btn" data-tsub="finals">Finals</button>
+    </div>
 
-    <section id="sec-slams">
-      <h2>Grand Slams &amp; ATP Finals — 2026</h2>
-      <div id="slamCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
-    </section>
+    <div id="tsub-overview" class="tpanel">
+      <section id="sec-players">
+        <h2>Alcaraz · Sinner · Jódar</h2>
+        <div id="playersCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
+      </section>
+
+      <section id="sec-atp-rank">
+        <h2>Rankings</h2>
+        <div class="seg" id="rankToggle">
+          <button class="seg-btn active" data-rank="atp">ATP Ranking</button>
+          <button class="seg-btn" data-rank="race">Race to Turin</button>
+        </div>
+        <div id="atpRankWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+        <div id="raceWrap" hidden></div>
+      </section>
+    </div>
+
+    <div id="tsub-slams" class="tpanel">
+      <section id="sec-slams">
+        <h2>Grand Slams — 2026</h2>
+        <div id="slamCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
+      </section>
+    </div>
+
+    <div id="tsub-masters" class="tpanel">
+      <section id="sec-masters">
+        <h2>Masters 1000 — 2026</h2>
+        <div id="mastersCards" class="cards"><div class="card"><span class="spinner"></span> Loading…</div></div>
+      </section>
+    </div>
+
+    <div id="tsub-finals" class="tpanel">
+      <section id="sec-finals">
+        <h2>ATP Finals — 2026</h2>
+        <div id="finalsWrap"><div class="empty-note"><span class="spinner"></span> Loading…</div></div>
+      </section>
+    </div>
+
   </div>
 
 </main>
@@ -186,13 +250,28 @@ const PL_CLUBS = [
 
 // Base ESPN tournament ids (stable across years) + a date known to fall inside that
 // year's tournament window, used to look the event up via ?dates=YYYYMMDD.
+const RM_ID = '86'; // Real Madrid is shown in bold wherever a club name appears
+const TENNIS_YEAR = 2026;
 const SLAMS_2026 = [
   {id: 154, name: 'Australian Open', probeDate: '20260119', wikiTitle: "2026 Australian Open – Men's singles"},
   {id: 172, name: 'Roland Garros',   probeDate: '20260525', wikiTitle: "2026 French Open – Men's singles"},
   {id: 188, name: 'Wimbledon',       probeDate: '20260705', wikiTitle: "2026 Wimbledon Championships – Men's singles"},
-  {id: 189, name: 'US Open',         probeDate: '20260830', wikiTitle: "2026 US Open – Men's singles"},
-  {id: 339, name: 'ATP Finals',      probeDate: '20261115', wikiTitle: null}
+  {id: 189, name: 'US Open',         probeDate: '20260830', wikiTitle: "2026 US Open – Men's singles"}
 ];
+// The nine ATP Masters 1000 events. probeDate is a day inside each event's main
+// draw (looked up via ?dates=YYYYMMDD); like the slams, these are 2026 values.
+const MASTERS_2026 = [
+  {id: 411, name: 'Indian Wells', probeDate: '20260308', wikiTitle: "2026 BNP Paribas Open – Men's singles"},
+  {id: 713, name: 'Miami',        probeDate: '20260323', wikiTitle: "2026 Miami Open – Men's singles"},
+  {id: 42,  name: 'Monte-Carlo',  probeDate: '20260408', wikiTitle: "2026 Monte-Carlo Masters – Singles"},
+  {id: 413, name: 'Madrid',       probeDate: '20260427', wikiTitle: "2026 Mutua Madrid Open – Men's singles"},
+  {id: 414, name: 'Rome',         probeDate: '20260511', wikiTitle: "2026 Italian Open – Men's singles"},
+  {id: 421, name: 'Canada',       probeDate: '20260807', wikiTitle: "2026 National Bank Open – Men's singles"},
+  {id: 718, name: 'Cincinnati',   probeDate: '20260818', wikiTitle: "2026 Cincinnati Open – Men's singles"},
+  {id: 315, name: 'Shanghai',     probeDate: '20261012', wikiTitle: "2026 Rolex Shanghai Masters – Singles"},
+  {id: 13,  name: 'Paris',        probeDate: '20261105', wikiTitle: "2026 Rolex Paris Masters – Singles"}
+];
+const FINALS_2026 = {id: 339, name: 'Nitto ATP Finals', probeDate: '20261117'};
 const STAGE_LABELS = {
   'league-phase': 'League Phase',
   'knockout-round-playoffs': 'Knockout Playoffs',
@@ -204,7 +283,12 @@ const STAGE_LABELS = {
 const STAGE_ORDER = ['league-phase','knockout-round-playoffs','round-of-16','quarterfinals','semifinals','final'];
 
 function normalize(s){
-  return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+  // Fold accents plus the letters NFD can't decompose (ø, æ, ł, ...), and one
+  // spelling variant the two data sources disagree on (Aleksandr/Alexander).
+  return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/ø/gi,'o').replace(/æ/gi,'ae').replace(/œ/gi,'oe').replace(/ł/gi,'l')
+    .replace(/[đð]/gi,'d').replace(/ß/g,'ss').replace(/ı/g,'i')
+    .toLowerCase().replace(/\baleksandr\b/g,'alexander').trim();
 }
 function isTrackedName(name){
   const n = normalize(name);
@@ -243,6 +327,27 @@ function setSectionError(el, msg){
 function esc(s){
   return (s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 }
+function teamHtml(team, label){
+  const n = esc(label || team.displayName);
+  return team.id === RM_ID ? '<span class="rm">' + n + '</span>' : n;
+}
+// The league scoreboards are large (a season of La Liga is ~6MB of JSON), so a
+// season's events are fetched once per refresh and shared between everything
+// on the page that needs them (club cards, the all-matches browser, ...).
+const soccerCache = new Map();
+function soccerSeasonYears(){
+  const now = new Date();
+  const y = now.getFullYear();
+  // A season starts in Aug and ends in May: Jan-Jun we're in the back half of
+  // the season that started last year; Jul-Dec in the front half of this year's.
+  return now.getMonth() <= 5 ? [y - 1, y] : [y, y + 1];
+}
+function getSoccerEvents(slug){
+  if(!soccerCache.has(slug)){
+    soccerCache.set(slug, fetchSoccerScoreboardYears(slug, soccerSeasonYears(), 500));
+  }
+  return soccerCache.get(slug);
+}
 
 // ---------- League standings ----------
 function renderStandingsHtml(data, wrapEl, highlightIds){
@@ -252,9 +357,9 @@ function renderStandingsHtml(data, wrapEl, highlightIds){
   for(const e of entries){
     const s = statMap(e.stats);
     const tracked = highlightIds && highlightIds.includes(e.team.id);
-    html += '<tr' + (tracked ? ' class="tracked"' : '') + '>' +
+    html += '<tr' + (tracked ? ' class="tracked fb"' : '') + '>' +
       '<td>' + s.rank + '</td>' +
-      '<td class="team-cell">' + esc(e.team.displayName) + '</td>' +
+      '<td class="team-cell">' + teamHtml(e.team) + '</td>' +
       '<td>' + s.gamesPlayed + '</td>' +
       '<td>' + s.wins + '</td>' +
       '<td>' + s.ties + '</td>' +
@@ -283,8 +388,8 @@ async function loadTopScorers(slug, wrapEl){
     const top = (goals ? goals.leaders : []).slice(0, 10);
     let html = '<table><thead><tr><th>#</th><th>Player</th><th>Club</th><th>Goals</th></tr></thead><tbody>';
     top.forEach((l, i) => {
-      const team = l.team ? l.team.displayName : (l.athlete.team ? l.athlete.team.displayName : '');
-      html += '<tr><td>' + (i+1) + '</td><td class="team-cell">' + esc(l.athlete.displayName) + '</td><td class="team-cell">' + esc(team) + '</td><td><strong>' + l.value + '</strong></td></tr>';
+      const team = l.team || l.athlete.team;
+      html += '<tr><td>' + (i+1) + '</td><td class="team-cell">' + esc(l.athlete.displayName) + '</td><td class="team-cell">' + (team ? teamHtml(team) : '') + '</td><td><strong>' + l.value + '</strong></td></tr>';
     });
     html += '</tbody></table>';
     wrapEl.innerHTML = html;
@@ -294,20 +399,32 @@ async function loadTopScorers(slug, wrapEl){
 }
 
 // ---------- Club cards (last result w/ scorers + next scheduled) ----------
-function goalLine(details, clubIds){
+// Each scorer gets the club they play for in brackets. For an own goal ESPN
+// credits the *benefiting* team in the event's `team`, but the scorer's own club
+// is on the athlete — so the athlete's team is what we show (with a fallback of
+// "the other side" when an own goal has no athlete team).
+function goalLine(details, competitors){
   const goals = (details || []).filter(d => d.scoringPlay);
   if(!goals.length) return '';
+  const teams = {};
+  (competitors || []).forEach(c => { teams[c.team.id] = c.team; });
   const names = goals.map(g => {
-    const scorer = g.athletesInvolved && g.athletesInvolved[0] ? g.athletesInvolved[0].displayName : '?';
-    return scorer + ' ' + g.clock.displayValue + (g.ownGoal ? ' (OG)' : '') + (g.penaltyKick ? ' (pen)' : '');
+    const a = g.athletesInvolved && g.athletesInvolved[0];
+    const scorer = a ? a.displayName : '?';
+    let teamId = a && a.team ? a.team.id : null;
+    if(!teamId && g.team){
+      teamId = g.ownGoal ? Object.keys(teams).find(id => id !== g.team.id) : g.team.id;
+    }
+    const t = teamId ? teams[teamId] : null;
+    const teamPart = t ? ' (' + teamHtml(t, t.shortDisplayName || t.displayName) + ')' : '';
+    return esc(scorer) + teamPart + ' ' + g.clock.displayValue + (g.ownGoal ? ' (OG)' : '') + (g.penaltyKick ? ' (pen)' : '');
   });
   return '<div class="goal-line">⚽ ' + names.join(' · ') + '</div>';
 }
 async function loadLeagueClubCards(slug, clubs, elId){
   const el = document.getElementById(elId);
   try{
-    const years = [...new Set([new Date().getFullYear(), new Date().getFullYear() + 1])];
-    const events = await fetchSoccerScoreboardYears(slug, years, 500);
+    const events = await getSoccerEvents(slug);
     el.innerHTML = clubs.map(club => {
       const clubEvents = events.filter(ev => ev.competitions[0].competitors.some(c => c.team.id === club.id));
       if(!clubEvents.length){
@@ -333,8 +450,8 @@ async function loadLeagueClubCards(slug, clubs, elId){
         const pillLabel = comp.status.type.shortDetail;
         const resultClass = comp.status.type.state === 'post' ? (own.winner ? 'result-win' : (opp.winner ? 'result-loss' : '')) : '';
         body += '<div class="row-between"><strong>' + club.name + '</strong><span class="pill' + (isLive?' live':'') + '">' + pillLabel + '</span></div>' +
-          '<div class="match-line ' + resultClass + '">' + venue + ' ' + esc(opp.team.displayName) + ' — <strong>' + ownScore + ' - ' + oppScore + '</strong></div>' +
-          goalLine(comp.details, [club.id]);
+          '<div class="match-line ' + resultClass + '">' + venue + ' ' + teamHtml(opp.team) + ' — <strong>' + ownScore + ' - ' + oppScore + '</strong></div>' +
+          goalLine(comp.details, comp.competitors);
       } else {
         body += '<div class="row-between"><strong>' + club.name + '</strong></div>';
       }
@@ -343,11 +460,98 @@ async function loadLeagueClubCards(slug, clubs, elId){
         const nown = ncomp.competitors.find(c => c.team.id === club.id);
         const nopp = ncomp.competitors.find(c => c.team.id !== club.id);
         const venue = nown.homeAway === 'home' ? 'vs' : '@';
-        body += '<div class="next-line">Next: ' + venue + ' ' + esc(nopp.team.displayName) + ' — ' + fmtTime(new Date(next.date)) + '</div>';
+        body += '<div class="next-line">Next: ' + venue + ' ' + teamHtml(nopp.team) + ' — ' + fmtTime(new Date(next.date)) + '</div>';
       }
       const cardIsLive = current && current.competitions[0].status.type.state === 'in';
       return '<div class="card' + (cardIsLive ? ' tracked' : '') + '">' + body + '</div>';
     }).join('');
+  }catch(e){
+    setSectionError(el, e.message);
+  }
+}
+
+// ---------- La Liga: every match, browsable by matchday ----------
+// ESPN puts no matchday number on soccer events, so a matchday is derived from
+// each team's n-th fixture in date order (an event's matchday is the later of
+// its two teams' counts). A match that was postponed therefore lands in the
+// matchday it was actually played in, which is why each matchday in the picker
+// also shows the real date range it covers.
+function assignMatchdays(events){
+  const sorted = events.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+  const count = {};
+  const byMd = {};
+  sorted.forEach(e => {
+    const ns = e.competitions[0].competitors.map(c => (count[c.team.id] = (count[c.team.id] || 0) + 1));
+    const md = Math.max(...ns);
+    (byMd[md] = byMd[md] || []).push(e);
+  });
+  return byMd;
+}
+function fmtDayRange(evs){
+  const ds = evs.map(e => new Date(e.date)).sort((a, b) => a - b);
+  const f = d => d.toLocaleDateString(undefined, {day: 'numeric', month: 'short'});
+  const a = f(ds[0]), b = f(ds[ds.length - 1]);
+  return a === b ? a : a + ' – ' + b;
+}
+function matchRowHtml(e, followedIds){
+  const comp = e.competitions[0];
+  const home = comp.competitors.find(c => c.homeAway === 'home') || comp.competitors[0];
+  const away = comp.competitors.find(c => c.homeAway === 'away') || comp.competitors[1];
+  const state = comp.status.type.state;
+  const tracked = followedIds.includes(home.team.id) || followedIds.includes(away.team.id);
+  let center, sub = '';
+  if(state === 'pre'){
+    const desc = comp.status.type.description;
+    center = 'vs';
+    sub = (desc && desc !== 'Scheduled' ? esc(desc) + ' · ' : '') + fmtTime(new Date(e.date));
+  } else {
+    center = home.score + ' - ' + away.score;
+    if(state === 'in') sub = '<span class="pill live">' + esc(comp.status.type.shortDetail) + '</span>';
+  }
+  return '<div class="mrow' + (tracked ? ' tracked' : '') + '">' +
+    '<div class="mline"><span class="home">' + teamHtml(home.team) + '</span><span class="score">' + center + '</span><span>' + teamHtml(away.team) + '</span></div>' +
+    (sub ? '<div class="msub">' + sub + '</div>' : '') +
+    (state !== 'pre' ? goalLine(comp.details, comp.competitors) : '') +
+    '</div>';
+}
+async function loadLaLigaAll(){
+  const el = document.getElementById('laligaAllWrap');
+  try{
+    const all = await getSoccerEvents('esp.1');
+    const now = Date.now();
+    let nearest = null;
+    all.forEach(e => {
+      const d = Math.abs(new Date(e.date) - now);
+      if(!nearest || d < nearest.d) nearest = {d, e};
+    });
+    if(!nearest){ el.innerHTML = '<div class="card empty-note">No matches found.</div>'; return; }
+    // Calendar-year fetches also pull in the tail of the previous season, so
+    // keep only the season of the fixture closest to today.
+    const events = all.filter(e => e.season.year === nearest.e.season.year);
+    const byMd = assignMatchdays(events);
+    const mds = Object.keys(byMd).map(Number).sort((a, b) => a - b);
+    // Open on the latest matchday that has any result (or live match) so the
+    // scores are what you see first; upcoming fixtures are one tap further.
+    const withResults = mds.filter(md => byMd[md].some(e => e.competitions[0].status.type.state !== 'pre'));
+    let current = withResults.length ? withResults[withResults.length - 1] : mds[0];
+    const followed = LALIGA_CLUBS.map(c => c.id);
+    el.innerHTML = '<div class="md-nav"><button class="md-btn" aria-label="Previous matchday">‹</button><select class="md-select"></select><button class="md-btn" aria-label="Next matchday">›</button></div><div class="card md-list"></div>';
+    const select = el.querySelector('.md-select');
+    select.innerHTML = mds.map(md => '<option value="' + md + '">Matchday ' + md + ' · ' + fmtDayRange(byMd[md]) + '</option>').join('');
+    const list = el.querySelector('.md-list');
+    const [prevBtn, nextBtn] = el.querySelectorAll('.md-btn');
+    function show(md){
+      current = md;
+      select.value = String(md);
+      const i = mds.indexOf(md);
+      prevBtn.disabled = i <= 0;
+      nextBtn.disabled = i >= mds.length - 1;
+      list.innerHTML = byMd[md].slice().sort((a, b) => new Date(a.date) - new Date(b.date)).map(e => matchRowHtml(e, followed)).join('');
+    }
+    select.addEventListener('change', () => show(parseInt(select.value, 10)));
+    prevBtn.addEventListener('click', () => show(mds[mds.indexOf(current) - 1]));
+    nextBtn.addEventListener('click', () => show(mds[mds.indexOf(current) + 1]));
+    show(current);
   }catch(e){
     setSectionError(el, e.message);
   }
@@ -381,47 +585,184 @@ async function loadAtpRankings(){
   }
 }
 
+// ---------- Race to Turin ----------
+// ESPN only publishes the standard ATP ranking, so the Race comes from the
+// "<year> ATP Finals" Wikipedia article, whose qualification table is kept up
+// to date (it carries its own "Updated as of ..." date, which we show) and
+// marks who has qualified, who is out and who withdrew.
+let raceCache = null;
+function parseRaceRank(label){
+  const num = (label.match(/\d+/) || [null])[0];
+  let status = null;
+  if(/†/.test(label)) status = 'q';
+  else if(/x$/i.test(label.trim())) status = 'out';
+  else if(/^[–—-]$/.test(label.trim())) status = 'inj';
+  return {rank: num ? parseInt(num, 10) : null, status};
+}
+function getRaceData(){
+  if(!raceCache){
+    raceCache = (async () => {
+      const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/html/' + encodeURIComponent(TENNIS_YEAR + ' ATP Finals'));
+      if(!res.ok) throw new Error('Wikipedia HTTP ' + res.status);
+      const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+      const table = [...doc.querySelectorAll('table.wikitable')].find(t => {
+        const head = ((t.querySelector('tr') || {}).textContent || '').replace(/\s+/g, ' ');
+        return /Player/.test(head) && /Total points/.test(head) && /Grand Slam/.test(head);
+      });
+      if(!table) throw new Error('race table not found');
+      const rows = [];
+      table.querySelectorAll('tr').forEach(tr => {
+        const cells = [...tr.children].map(c => c.textContent.replace(/\s+/g, ' ').trim());
+        if(cells.length === 1){ if(/alternate/i.test(cells[0])) rows.push({alternates: true}); return; }
+        if(cells.length < 6 || /^(Rank|AUS)$/.test(cells[0])) return;
+        const total = parseInt(cells[cells.length - 3].replace(/,/g, ''), 10);
+        if(isNaN(total)) return;
+        rows.push(Object.assign(parseRaceRank(cells[0]), {
+          name: cells[1], total, tourn: parseInt(cells[cells.length - 2], 10), titles: parseInt(cells[cells.length - 1], 10)
+        }));
+      });
+      const text = doc.body.textContent || '';
+      const asOfRaw = (text.match(/Updated as of (\d{1,2}\s+\w+\s+\d{4})/) || [])[1];
+      const asOf = asOfRaw ? asOfRaw.replace(/\s+/g, ' ') : null; // Wikipedia uses non-breaking spaces here
+      let finalsDates = null;
+      const info = doc.querySelector('table.infobox');
+      if(info){
+        [...info.querySelectorAll('tr')].forEach(tr => {
+          const th = tr.querySelector('th');
+          if(th && /^Date/i.test(th.textContent.trim())){
+            const td = tr.querySelector('td');
+            if(td) finalsDates = td.textContent.replace(/\s+/g, ' ').trim();
+          }
+        });
+      }
+      return {rows, asOf, finalsDates};
+    })();
+    raceCache.catch(() => { raceCache = null; });
+  }
+  return raceCache;
+}
+function raceTagHtml(status){
+  if(status === 'q') return '<span class="q-tag q">Q</span>';
+  if(status === 'out') return '<span class="q-tag out">out</span>';
+  if(status === 'inj') return '<span class="q-tag inj">withdrew</span>';
+  return '';
+}
+function renderRaceTable(race){
+  let html = '<table><thead><tr><th>#</th><th>Player</th><th>Pts</th><th>Tourn</th><th>Titles</th></tr></thead><tbody>';
+  race.rows.forEach(r => {
+    if(r.alternates){ html += '<tr class="alt-row"><td colspan="5">Alternates</td></tr>'; return; }
+    html += '<tr' + (isTrackedName(r.name) ? ' class="tracked"' : '') + '>' +
+      '<td>' + (r.rank != null ? r.rank : '–') + '</td>' +
+      '<td class="team-cell">' + esc(r.name) + raceTagHtml(r.status) + '</td>' +
+      '<td><strong>' + r.total.toLocaleString() + '</strong></td>' +
+      '<td>' + (isNaN(r.tourn) ? '' : r.tourn) + '</td>' +
+      '<td>' + (isNaN(r.titles) ? '' : r.titles) + '</td></tr>';
+  });
+  html += '</tbody></table><div class="legend">Race to Turin — points won in ' + TENNIS_YEAR + ' only. ' +
+    '<span class="q-tag q" style="margin-left:0">Q</span> qualified for the ATP Finals · <span class="q-tag out">out</span> can no longer qualify · <span class="q-tag inj">withdrew</span> qualified but withdrew. ' +
+    (race.asOf ? 'Updated as of ' + esc(race.asOf) + '. ' : '') + 'Source: Wikipedia.</div>';
+  return html;
+}
+async function loadRace(){
+  const el = document.getElementById('raceWrap');
+  el.innerHTML = '<div class="empty-note"><span class="spinner"></span> Loading…</div>';
+  try{
+    el.innerHTML = renderRaceTable(await getRaceData());
+  }catch(e){
+    setSectionError(el, e.message);
+  }
+}
+document.querySelectorAll('#rankToggle .seg-btn').forEach(btn => btn.addEventListener('click', () => {
+  const race = btn.dataset.rank === 'race';
+  document.querySelectorAll('#rankToggle .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+  document.getElementById('atpRankWrap').hidden = race;
+  document.getElementById('raceWrap').hidden = !race;
+  if(race) loadRace();
+}));
+
 // ---------- Live/recent tennis results for tracked players (current tour event) ----------
+// A finished match must never be replaced by the next one on screen, so a
+// player's matches are split into the live one, the most recent finished one
+// and the next scheduled one, and both the result and the next match are shown.
+function sideMatches(comps, name){
+  return comps
+    .filter(c => c.competitors.some(co => co.athlete && normalize(co.athlete.displayName) === normalize(name)))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+function playerStatus(comps, name){
+  const own = sideMatches(comps, name);
+  const done = own.filter(c => c.status.type.state === 'post');
+  return {
+    own,
+    live: own.find(c => c.status.type.state === 'in') || null,
+    last: done.length ? done[done.length - 1] : null,
+    next: own.find(c => c.status.type.state === 'pre') || null
+  };
+}
+function opponentName(c, name){
+  const opp = c.competitors.find(co => !(co.athlete && normalize(co.athlete.displayName) === normalize(name)));
+  return opp && opp.athlete ? opp.athlete.displayName : 'TBD';
+}
+function didWin(c, name){
+  const me = c.competitors.find(co => co.athlete && normalize(co.athlete.displayName) === normalize(name));
+  return !!(me && me.winner);
+}
+function scoreFor(c, name){
+  const me = c.competitors.find(co => co.athlete && normalize(co.athlete.displayName) === normalize(name));
+  const opp = c.competitors.find(co => co !== me);
+  if(!me || !opp || !me.linescores || !me.linescores.length) return '';
+  return me.linescores.map((ls, i) => ls.value + '-' + (opp.linescores && opp.linescores[i] ? opp.linescores[i].value : '')).join(' ');
+}
+function nextLineText(c, name){
+  return 'Next: ' + (c.round ? c.round.displayName + ' · ' : '') + 'vs ' + opponentName(c, name) + ' — ' + fmtTime(new Date(c.date));
+}
+function liveLineText(c, name){
+  const sc = scoreFor(c, name);
+  return 'LIVE vs ' + opponentName(c, name) + (sc ? ' · ' + sc : '');
+}
+function resultNote(c){
+  return (c.notes && c.notes[0] && c.notes[0].text) || '';
+}
 async function loadPlayerCards(){
   const el = document.getElementById('playersCards');
   try{
     const data = await fetchJson('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard');
-    const event = data.events && data.events[0];
-    if(!event){ el.innerHTML = '<div class="card empty-note">No ATP event currently in progress.</div>'; return; }
-    const singles = (event.groupings || []).find(g => g.grouping.slug === 'mens-singles');
-    const comps = singles ? singles.competitions : [];
-    const matches = {};
-    for(const p of TRACKED_PLAYERS) matches[p] = null;
-    for(const c of comps){
-      for(const competitor of c.competitors){
-        const name = competitor.athlete && competitor.athlete.displayName;
-        if(name && isTrackedName(name)){
-          const key = TRACKED_PLAYERS.find(p => normalize(p) === normalize(name));
-          const existing = matches[key];
-          if(!existing || new Date(c.date) > new Date(existing.date)) matches[key] = c;
-        }
-      }
-    }
+    const events = data.events || [];
+    if(!events.length){ el.innerHTML = '<div class="card empty-note">No ATP event currently in progress.</div>'; return; }
+    // Several tour events can run in the same week, so look across all of them.
+    const comps = [];
+    events.forEach(ev => {
+      const singles = (ev.groupings || []).find(g => g.grouping.slug === 'mens-singles');
+      mainDrawOnly(singles ? singles.competitions : []).forEach(c => { c._event = ev.name; comps.push(c); });
+    });
     el.innerHTML = TRACKED_PLAYERS.map(p => {
-      const c = matches[p];
-      if(!c) return '<div class="card"><div class="row-between"><strong>' + p + '</strong><span class="pill">not in draw</span></div><div class="empty-note">Not competing at ' + esc(event.name) + ' right now.</div></div>';
-      const state = c.status.type.state;
-      const isLive = state === 'in';
-      const roundLabel = c.round ? c.round.displayName : '';
-      const note = (c.notes && c.notes[0] && c.notes[0].text) || '';
-      let scheduledLine;
-      if(state === 'pre'){
-        const opponent = c.competitors.find(co => !(co.athlete && normalize(co.athlete.displayName) === normalize(p)));
-        const oppName = opponent && opponent.athlete ? opponent.athlete.displayName : 'TBD';
-        scheduledLine = 'vs ' + oppName + ' — ' + fmtTime(new Date(c.date));
-      } else {
-        scheduledLine = note || 'Result pending';
+      const st = playerStatus(comps, p);
+      if(!st.own.length){
+        return '<div class="card"><div class="row-between"><strong>' + p + '</strong><span class="pill">not in draw</span></div>' +
+          '<div class="empty-note">Not competing at ' + events.map(e => esc(e.name)).join(' / ') + ' right now.</div></div>';
       }
-      return '<div class="card' + (isLive ? ' tracked' : '') + '">' +
-        '<div class="row-between"><strong>' + p + '</strong><span class="pill' + (isLive?' live':'') + '">' + (isLive ? c.status.type.shortDetail : c.status.type.description) + '</span></div>' +
-        '<div class="small">' + esc(event.name) + (roundLabel ? ' · ' + roundLabel : '') + '</div>' +
-        '<div class="match-line">' + esc(scheduledLine) + '</div>' +
-        '</div>';
+      const primary = st.live || st.last || st.next;
+      let pill, body = '';
+      if(st.live){
+        pill = '<span class="pill live">' + esc(st.live.status.type.shortDetail) + '</span>';
+        body += '<div class="match-line"><strong>' + esc(liveLineText(st.live, p)) + '</strong></div>';
+        if(st.last) body += '<div class="goal-line">Previous: ' + esc(resultNote(st.last)) + '</div>';
+      } else if(st.last){
+        const won = didWin(st.last, p);
+        pill = '<span class="pill">' + (won ? 'Won' : 'Lost') + '</span>';
+        body += '<div class="match-line ' + (won ? 'result-win' : 'result-loss') + '">' + esc(resultNote(st.last) || 'Result pending') + '</div>';
+      } else {
+        pill = '<span class="pill">Scheduled</span>';
+      }
+      if(st.next){
+        body += st.last || st.live
+          ? '<div class="next-line">' + esc(nextLineText(st.next, p)) + '</div>'
+          : '<div class="match-line">vs ' + esc(opponentName(st.next, p)) + ' — ' + fmtTime(new Date(st.next.date)) + '</div>';
+      }
+      return '<div class="card' + (st.live ? ' tracked' : '') + '">' +
+        '<div class="row-between"><strong>' + p + '</strong>' + pill + '</div>' +
+        '<div class="small">' + esc(primary._event) + (primary.round ? ' · ' + esc(primary.round.displayName) : '') + '</div>' +
+        body + '</div>';
     }).join('');
   }catch(e){
     setSectionError(el, e.message);
@@ -429,8 +770,57 @@ async function loadPlayerCards(){
 }
 
 // ---------- Grand Slams + ATP Finals : full round-by-round draw, lazy loaded ----------
+// Undrawn slots come back from ESPN as real-looking athletes named "TBD" (with
+// negative ids), and the matches between them can carry a "Canceled" status.
+// Neither counts as a real player / a match that was played.
+function realAthlete(co){
+  return !!(co.athlete && co.athlete.displayName && co.athlete.displayName !== 'TBD');
+}
+function isPlayed(c){
+  return c.status.type.state !== 'pre' && c.status.type.description !== 'Canceled' && c.competitors.some(realAthlete);
+}
+function hasDraw(comps){
+  return comps.some(c => c.competitors.some(realAthlete));
+}
 function mainDrawOnly(comps){
-  return comps.filter(c => !(c.round && /qualifying/i.test(c.round.displayName)));
+  return repairRoundLabels(comps.filter(c => !(c.round && /qualifying/i.test(c.round.displayName))));
+}
+// ESPN occasionally files a match under the wrong round (Indian Wells has a
+// Round 3 match labelled "Round 4"). Nobody plays twice in one round, so when a
+// player shows up in two matches of the same round, the earlier one belongs to
+// the round before it — as long as that round doesn't already hold a match for
+// either of the players. Round robins (several matches per player per round)
+// are left alone.
+function repairRoundLabels(comps){
+  const byDate = (a, b) => new Date(a.date) - new Date(b.date);
+  const order = [];
+  const byRound = {};
+  comps.slice().sort(byDate).forEach(c => {
+    const k = c.round ? c.round.displayName : null;
+    if(!k) return;
+    if(!byRound[k]){ byRound[k] = []; order.push(k); }
+    byRound[k].push(c);
+  });
+  const playersOf = m => m.competitors.filter(co => co.athlete).map(co => normalize(co.athlete.displayName));
+  for(let r = order.length - 1; r >= 1; r--){
+    const label = order[r], prevLabel = order[r - 1];
+    if(/group/i.test(label) || /group/i.test(prevLabel)) continue;
+    const seen = {};
+    byRound[label].forEach(m => playersOf(m).forEach(n => { (seen[n] = seen[n] || []).push(m); }));
+    Object.keys(seen).forEach(n => {
+      const ms = seen[n].slice().sort(byDate);
+      for(let i = 0; i < ms.length - 1; i++){
+        const m = ms[i];
+        if(!byRound[label].includes(m)) continue;
+        const mine = playersOf(m);
+        if(byRound[prevLabel].some(x => playersOf(x).some(p => mine.includes(p)))) continue;
+        m.round = byRound[prevLabel][0].round;
+        byRound[label] = byRound[label].filter(x => x !== m);
+        byRound[prevLabel].push(m);
+      }
+    });
+  }
+  return comps;
 }
 function matchLineHtml(c){
   const isLive = c.status.type.state === 'in';
@@ -476,7 +866,7 @@ function renderRoundsTabbed(comps, containerEl){
   });
   let defaultIdx = 0;
   order.forEach((label, i) => {
-    if(byRound[label].some(c => c.status.type.state !== 'pre')) defaultIdx = i;
+    if(byRound[label].some(isPlayed)) defaultIdx = i;
   });
   renderMatches(defaultIdx);
 }
@@ -554,20 +944,25 @@ async function fetchWikiRound1Order(wikiTitle, numR1){
     if(!res.ok) return null;
     const html = await res.text();
     const doc = new DOMParser().parseFromString(html, 'text/html');
+    // Only the main-draw "section" tables (16/32/64/128TeamBracket templates) —
+    // the 4- and 8-team tables are the qualifying draws and the final-rounds
+    // summary. Slams use 8 sections of 16; Masters use "...-Byes" sections that
+    // list just the players who actually play round 1 (seeds with a bye only
+    // show up from round 2), so concatenating them gives round 1 in sheet order.
     const sections = [...doc.querySelectorAll('table[data-mw]')]
       .map(t => {
-        try{ return JSON.parse(t.getAttribute('data-mw')).parts[0].template.params; }
-        catch(e){ return null; }
+        try{
+          const tpl = JSON.parse(t.getAttribute('data-mw')).parts[0].template;
+          return /^(16|32|64|128)TeamBracket/.test(tpl.target.wt.trim()) ? tpl.params : null;
+        }catch(e){ return null; }
       })
-      .filter(params => params && Object.keys(params).filter(k => /^RD1-team\d+$/.test(k)).length === 16);
-    const expectedSections = numR1 / 8; // 8 sections of 16 players cover a 128-player (64-match) draw
-    if(sections.length !== expectedSections) return null;
+      .filter(Boolean);
     const names = [];
     sections.forEach(params => {
-      for(let i = 1; i <= 16; i++){
-        const key = 'RD1-team' + String(i).padStart(2, '0');
-        names.push(cleanWikiName(params[key] ? params[key].wt : null));
-      }
+      Object.keys(params)
+        .filter(k => /^RD1-team\d+$/.test(k))
+        .sort((a, b) => parseInt(a.slice(8), 10) - parseInt(b.slice(8), 10))
+        .forEach(k => names.push(cleanWikiName(params[k].wt)));
     });
     return names.length === numR1 * 2 ? names : null;
   }catch(e){
@@ -641,6 +1036,9 @@ function buildRound1Positions(r1Matches, r2Matches, seedMap, wikiNames){
 // fallback used only where Wikipedia's real published order isn't available.
 function buildHeuristicPositions(r1Matches, r2Matches, seedMap){
   const numR1 = r1Matches.length;
+  // The pairing/seed-template logic only makes sense for a clean power-of-two
+  // set of matches; anything else (byes, a stray leftover) keeps ESPN's order.
+  if(numR1 < 2 || (numR1 & (numR1 - 1)) !== 0) return r1Matches.slice();
   const positions = new Array(numR1).fill(null);
   const confirmedPairs = []; // arrays of exactly 2 r1 indices
   const loose = []; // r1 indices with no confirmed sibling yet
@@ -701,14 +1099,23 @@ function buildHeuristicPositions(r1Matches, r2Matches, seedMap){
   return positions;
 }
 // Builds rounds[0..n] where each round is an array of API match objects (or null)
-// positioned so that a match's two children are always at [2j, 2j+1] of the
-// previous round — a real bracket tree, not just a grouped list.
+// in bracket order, so a round's matches line up with the previous round's.
+// Round 1 comes from Wikipedia's published order (or a heuristic fallback); every
+// later round is placed by tracing where each player came from:
+//  - a clean halving (128 -> 64 -> ...): a match sits in slot floor(feeder/2),
+//    i.e. its two feeders are at [2j, 2j+1] of the previous round;
+//  - a round where each match has one feeder (Masters 96-draw round 1 -> 2, the
+//    other player being a seed who got a bye): slot == the feeder's slot;
+//  - anything uneven (Masters 56-draw round 1 -> 2): ordered by the average
+//    position of its feeders, which keeps top-to-bottom order intact.
 function buildBracketRounds(mainComps, orderLabels, wikiNames){
   const byRound = {};
-  mainComps.forEach(c => (byRound[c.round ? c.round.displayName : 'Unknown'] = byRound[c.round ? c.round.displayName : 'Unknown'] || []).push(c));
+  mainComps.forEach(c => {
+    const k = c.round ? c.round.displayName : 'Unknown';
+    (byRound[k] = byRound[k] || []).push(c);
+  });
   const r1Matches = byRound[orderLabels[0]] || [];
-  const numR1 = r1Matches.length;
-  if(numR1 < 2 || (numR1 & (numR1 - 1)) !== 0) return null; // needs a clean power-of-two draw
+  if(r1Matches.length < 2) return null;
 
   const seedMap = extractSeedMap(mainComps);
   const positions = buildRound1Positions(r1Matches, byRound[orderLabels[1]] || [], seedMap, wikiNames);
@@ -717,20 +1124,32 @@ function buildBracketRounds(mainComps, orderLabels, wikiNames){
   let prev = positions;
   for(let r = 1; r < orderLabels.length; r++){
     const apiMatches = byRound[orderLabels[r]] || [];
-    const size = prev.length / 2;
-    const cur = new Array(size).fill(null);
-    const usedR = new Set();
-    for(let j = 0; j < size; j++){
-      const wa = winnerNormName(prev[2*j]);
-      const wb = winnerNormName(prev[2*j+1]);
-      if(!wa && !wb) continue;
-      const idx = apiMatches.findIndex((m,i) => !usedR.has(i) && m.competitors.some(co => co.athlete && (normalize(co.athlete.displayName) === wa || normalize(co.athlete.displayName) === wb)));
-      if(idx !== -1){ cur[j] = apiMatches[idx]; usedR.add(idx); }
-    }
-    const leftover2 = apiMatches.filter((m,i) => !usedR.has(i));
-    let li2 = 0;
-    for(let j = 0; j < size; j++){
-      if(!cur[j]) cur[j] = leftover2[li2++] || null;
+    // slot in the previous round of every player who won there
+    const fromSlot = new Map();
+    prev.forEach((pm, i) => { const w = winnerNormName(pm); if(w) fromSlot.set(w, i); });
+    const keyed = apiMatches.map(m => {
+      const idxs = m.competitors
+        .map(co => co.athlete ? fromSlot.get(normalize(co.athlete.displayName)) : undefined)
+        .filter(i => i !== undefined);
+      return {m, key: idxs.length ? idxs.reduce((a, b) => a + b, 0) / idxs.length : null};
+    });
+    const ratio = prev.length / apiMatches.length;
+    let cur;
+    if(ratio === 1 || ratio === 2){
+      cur = new Array(apiMatches.length).fill(null);
+      const leftover = [];
+      keyed.forEach(({m, key}) => {
+        const s = key === null ? -1 : Math.floor(key / ratio);
+        if(s >= 0 && s < cur.length && !cur[s]) cur[s] = m; else leftover.push(m);
+      });
+      let li = 0;
+      for(let j = 0; j < cur.length; j++){
+        if(!cur[j]) cur[j] = leftover[li++] || null;
+      }
+    } else {
+      const linked = keyed.filter(k => k.key !== null).sort((a, b) => a.key - b.key);
+      const unlinked = keyed.filter(k => k.key === null);
+      cur = linked.concat(unlinked).map(k => k.m);
     }
     rounds.push(cur);
     prev = cur;
@@ -748,9 +1167,9 @@ function bracketMatchHtml(m, seedMap){
   }
   const tracked = m.competitors.some(co => co.athlete && isTrackedName(co.athlete.displayName));
   const lines = m.competitors.map(co => {
-    const name = co.athlete ? co.athlete.displayName : 'TBD';
-    const seed = co.athlete ? seedMap[normalize(co.athlete.displayName)] : null;
-    return '<div class="bm-line' + (co.winner ? ' bm-winner' : '') + '">' + (seed ? '(' + seed + ') ' : '') + esc(name) + '</div>';
+    const name = realAthlete(co) ? co.athlete.displayName : 'TBD';
+    const seed = realAthlete(co) ? seedMap[normalize(co.athlete.displayName)] : null;
+    return '<div class="bm-line' + (co.winner ? ' bm-winner' : '') + (name === 'TBD' ? ' bm-tbd' : '') + '">' + (seed ? '(' + seed + ') ' : '') + esc(name) + '</div>';
   }).join('');
   const footer = m.status.type.state === 'pre'
     ? '<div class="bm-time">' + fmtTime(new Date(m.date)) + '</div>'
@@ -759,7 +1178,7 @@ function bracketMatchHtml(m, seedMap){
 }
 async function renderBracket(comps, containerEl, wikiTitle){
   const mainComps = mainDrawOnly(comps);
-  if(!mainComps.length){ containerEl.innerHTML = '<div class="small">Draw not set yet.</div>'; return; }
+  if(!mainComps.length || !hasDraw(mainComps)){ containerEl.innerHTML = '<div class="small">The draw has not been made yet.</div>'; return; }
   const {order} = chronologicalRoundOrder(mainComps);
   const byRoundCount = {};
   mainComps.forEach(c => (byRoundCount[c.round ? c.round.displayName : 'Unknown'] = (byRoundCount[c.round ? c.round.displayName : 'Unknown']||0)+1));
@@ -782,79 +1201,99 @@ async function renderBracket(comps, containerEl, wikiTitle){
   });
   let defaultIdx = 0;
   rounds.forEach((roundMatches, i) => {
-    if(roundMatches.some(m => m && m.status.type.state !== 'pre')) defaultIdx = i;
+    if(roundMatches.some(m => m && isPlayed(m))) defaultIdx = i;
   });
   renderRound(defaultIdx);
 }
-async function loadFullDraw(slam, containerEl){
+function tennisScoreboardUrl(probeDate){
+  return 'https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=' + probeDate;
+}
+function findTournamentEvent(data, t){
+  return (data.events || []).find(e => e.id === t.id + '-' + TENNIS_YEAR) || null;
+}
+async function loadFullDraw(t, containerEl){
   containerEl.innerHTML = '<div class="empty-note"><span class="spinner"></span> Loading full draw…</div>';
   try{
-    const data = await fetchJson('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=' + slam.probeDate);
-    const event = data.events && data.events[0];
+    const data = await fetchJson(tennisScoreboardUrl(t.probeDate));
+    const event = findTournamentEvent(data, t);
     const singles = event ? (event.groupings || []).find(g => g.grouping.slug === 'mens-singles') : null;
     const comps = singles ? singles.competitions : [];
-    await renderBracket(comps, containerEl, slam.wikiTitle);
+    await renderBracket(comps, containerEl, t.wikiTitle);
   }catch(e){
     containerEl.innerHTML = '<div class="error-note">Could not load the full draw (' + e.message + ').</div>';
   }
 }
-async function loadSlamCard(slam){
+// One line (or two) per tracked player: how far they got / their latest result,
+// plus the next match if the tournament is still going — never just the next one.
+function playerLinesHtml(comps, eventOver){
+  if(!comps.length) return '<div class="small">Draw not set yet.</div>';
+  return TRACKED_PLAYERS.map(p => {
+    const st = playerStatus(comps, p);
+    if(!st.own.length) return '<div class="small">' + p + ': did not compete</div>';
+    const round = m => (m.round ? esc(m.round.displayName) : '');
+    let html = '';
+    if(st.live){
+      html += '<div class="small"><strong>' + p + '</strong> — <span class="pill live">LIVE</span> ' + round(st.live) + ' vs ' + esc(opponentName(st.live, p)) +
+        (scoreFor(st.live, p) ? ' · ' + esc(scoreFor(st.live, p)) : '') + '</div>';
+    } else if(st.last){
+      const note = resultNote(st.last);
+      html += '<div class="small"><strong>' + p + '</strong> — ' + round(st.last) + (note ? ': ' + esc(note) : '') + '</div>';
+    }
+    if(st.next && !eventOver){
+      html += '<div class="small">' + (st.last || st.live ? '&nbsp;&nbsp;↳ ' : '<strong>' + p + '</strong> — ') + esc(nextLineText(st.next, p)) + '</div>';
+    }
+    return html;
+  }).join('');
+}
+async function loadTournamentCard(t){
   try{
-    const data = await fetchJson('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=' + slam.probeDate);
-    const event = data.events && data.events[0];
-    if(!event || !event.name || !event.name.toLowerCase().includes(slam.name.toLowerCase().split(' ')[0].toLowerCase())){
-      return '<div class="card"><div class="row-between"><strong>' + slam.name + '</strong><span class="pill">not started</span></div>' +
-        '<div class="empty-note">No data yet for this date window.</div></div>';
+    const data = await fetchJson(tennisScoreboardUrl(t.probeDate));
+    const event = findTournamentEvent(data, t);
+    if(!event){
+      return '<div class="card"><div class="row-between"><strong>' + esc(t.name) + '</strong><span class="pill">not started</span></div>' +
+        '<div class="empty-note">No data yet for this tournament.</div></div>';
     }
     const singles = (event.groupings || []).find(g => g.grouping.slug === 'mens-singles');
     const comps = mainDrawOnly(singles ? singles.competitions : []);
-    const final = comps.find(c => c.round && c.round.displayName === 'Final' && c.status.type.completed);
+    const drawn = hasDraw(comps);
+    const final = comps.find(c => c.round && c.round.displayName === 'Final' && c.status.type.completed && isPlayed(c));
     let statusLine;
     if(final){
       const winner = final.competitors.find(c => c.winner);
       statusLine = '<span class="pill">Completed</span> Champion: <strong>' + (winner ? esc(winner.athlete.displayName) : '?') + '</strong>';
     } else {
-      const inProgress = comps.filter(c => c.status.type.state !== 'pre');
+      const inProgress = comps.filter(isPlayed).sort((a, b) => new Date(a.date) - new Date(b.date));
       if(inProgress.length){
         statusLine = '<span class="pill live">In progress</span> Latest round: ' + esc(inProgress[inProgress.length-1].round.displayName);
       } else {
         statusLine = '<span class="pill">Not started</span>';
       }
     }
-    const playerLines = comps.length === 0 ? '<div class="small">Draw not set yet.</div>' : TRACKED_PLAYERS.map(p => {
-      const own = comps.filter(c => c.competitors.some(co => co.athlete && isTrackedName(co.athlete.displayName) && normalize(co.athlete.displayName) === normalize(p)));
-      if(!own.length) return '<div class="small">' + p + ': did not compete</div>';
-      own.sort((a,b) => new Date(b.date) - new Date(a.date));
-      const last = own[0];
-      const note = (last.notes && last.notes[0] && last.notes[0].text) || '';
-      const round = last.round ? last.round.displayName : '';
-      return '<div class="small"><strong>' + p + '</strong> — ' + esc(round) + (note ? ': ' + esc(note) : '') + '</div>';
-    }).join('');
-    const drawId = 'draw-' + slam.id;
-    return '<div class="card"><div class="row-between"><strong>' + slam.name + '</strong></div>' +
-      '<div class="match-line" style="margin-bottom:6px;">' + statusLine + '</div>' + playerLines +
-      '<details id="' + drawId + '" style="margin:10px -14px -12px;border:none;border-top:1px solid var(--line);border-radius:0;">' +
+    const sponsor = event.name && normalize(event.name) !== normalize(t.name) ? '<div class="small">' + esc(event.name) + '</div>' : '';
+    return '<div class="card"><div class="row-between"><strong>' + esc(t.name) + '</strong></div>' + sponsor +
+      '<div class="match-line" style="margin-bottom:6px;">' + statusLine + '</div>' + playerLinesHtml(drawn ? comps : [], !!final) +
+      '<details id="draw-' + t.id + '" style="margin:10px -14px -12px;border:none;border-top:1px solid var(--line);border-radius:0;">' +
       '<summary style="font-size:13px;">Show full draw</summary>' +
       '<div class="draw-content" style="padding-bottom:10px;">Tap to load…</div>' +
       '</details></div>';
   }catch(e){
-    return '<div class="card"><div class="row-between"><strong>' + slam.name + '</strong><span class="pill">error</span></div>' +
-      '<div class="error-note">' + e.message + '</div></div>';
+    return '<div class="card"><div class="row-between"><strong>' + esc(t.name) + '</strong><span class="pill">error</span></div>' +
+      '<div class="error-note">' + esc(e.message) + '</div></div>';
   }
 }
-async function loadSlamCards(){
-  const el = document.getElementById('slamCards');
+async function loadTournamentCards(elId, list){
+  const el = document.getElementById(elId);
   try{
-    const cards = await Promise.all(SLAMS_2026.map(loadSlamCard));
+    const cards = await Promise.all(list.map(loadTournamentCard));
     el.innerHTML = cards.join('');
-    SLAMS_2026.forEach(slam => {
-      const details = document.getElementById('draw-' + slam.id);
+    list.forEach(t => {
+      const details = document.getElementById('draw-' + t.id);
       if(!details) return;
       let loaded = false;
       details.addEventListener('toggle', () => {
         if(details.open && !loaded){
           loaded = true;
-          loadFullDraw(slam, details.querySelector('.draw-content'));
+          loadFullDraw(t, details.querySelector('.draw-content'));
         }
       });
     });
@@ -862,6 +1301,8 @@ async function loadSlamCards(){
     setSectionError(el, e.message);
   }
 }
+const loadSlamCards = () => loadTournamentCards('slamCards', SLAMS_2026);
+const loadMastersCards = () => loadTournamentCards('mastersCards', MASTERS_2026);
 
 // ---------- Champions League ----------
 async function loadUcl(){
@@ -927,54 +1368,208 @@ function renderStageDetails(title, events, followedIds){
     } else {
       scoreOrTime = '<span class="time">' + fmtTime(new Date(e.date)) + '</span>';
     }
-    const gline = completed ? goalLine(comp.details) : '';
+    const gline = completed ? goalLine(comp.details, comp.competitors) : '';
     return '<div class="match' + (tracked ? ' tracked' : '') + '">' +
-      esc(home.team.displayName) + ' vs ' + esc(away.team.displayName) + ' — ' + scoreOrTime + gline + '</div>';
+      teamHtml(home.team) + ' vs ' + teamHtml(away.team) + ' — ' + scoreOrTime + gline + '</div>';
   }).join('');
   return '<details><summary>' + esc(title) + ' <span class="small">(' + events.length + ')</span></summary><div class="stage-block">' + rows + '</div></details>';
 }
 
-// ---------- Orchestration ----------
-async function loadAll(){
-  document.getElementById('footerStatus').textContent = 'Refreshing…';
-  await Promise.allSettled([
-    loadPlayerCards(),
+// ---------- ATP Finals (round robin, then semifinals and final) ----------
+// ESPN gives no group labels, but in a round robin two players are in the same
+// group exactly when they play each other — so groups are the connected
+// components of the "played each other" graph.
+function setsWon(co){
+  return (co.linescores || []).filter(ls => ls.winner).length;
+}
+function renderFinalsGroups(comps){
+  const main = mainDrawOnly(comps);
+  const isGroup = c => c.round && /group/i.test(c.round.displayName);
+  const groupMatches = main.filter(isGroup);
+  const knockout = main.filter(c => !isGroup(c));
+  const seedMap = extractSeedMap(main);
+  const nameOf = co => (co.athlete ? co.athlete.displayName : null);
+
+  const parent = {};
+  const find = x => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+  groupMatches.forEach(c => {
+    const names = c.competitors.map(nameOf);
+    if(names.some(n => !n)) return;
+    names.forEach(n => { if(!(n in parent)) parent[n] = n; });
+    parent[find(names[0])] = find(names[1]);
+  });
+  const byRoot = {};
+  Object.keys(parent).forEach(n => { (byRoot[find(n)] = byRoot[find(n)] || []).push(n); });
+  const groups = Object.values(byRoot)
+    .map(players => ({players, bestSeed: Math.min(...players.map(p => seedMap[normalize(p)] || 99))}))
+    .sort((a, b) => a.bestSeed - b.bestSeed);
+
+  let html = '';
+  groups.forEach((g, gi) => {
+    const inGroup = new Set(g.players);
+    const matches = groupMatches
+      .filter(c => c.competitors.every(co => inGroup.has(nameOf(co))))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    const stat = {};
+    g.players.forEach(p => { stat[p] = {p, w: 0, l: 0, sw: 0, sl: 0}; });
+    matches.filter(c => c.status.type.state === 'post').forEach(c => {
+      const [a, b] = c.competitors;
+      stat[nameOf(a)].sw += setsWon(a); stat[nameOf(a)].sl += setsWon(b);
+      stat[nameOf(b)].sw += setsWon(b); stat[nameOf(b)].sl += setsWon(a);
+      const win = c.competitors.find(co => co.winner);
+      if(win){
+        stat[nameOf(win)].w++;
+        stat[nameOf(c.competitors.find(co => co !== win))].l++;
+      }
+    });
+    const rows = Object.values(stat).sort((a, b) =>
+      b.w - a.w || (b.sw - b.sl) - (a.sw - a.sl) || (seedMap[normalize(a.p)] || 99) - (seedMap[normalize(b.p)] || 99));
+    html += '<div class="grp-title">Group ' + String.fromCharCode(65 + gi) + '</div>' +
+      '<table><thead><tr><th>Player</th><th>W</th><th>L</th><th>Sets</th></tr></thead><tbody>' +
+      rows.map(r => {
+        const seed = seedMap[normalize(r.p)];
+        return '<tr' + (isTrackedName(r.p) ? ' class="tracked"' : '') + '><td class="team-cell">' + (seed ? '(' + seed + ') ' : '') + esc(r.p) + '</td>' +
+          '<td>' + r.w + '</td><td>' + r.l + '</td><td>' + r.sw + '-' + r.sl + '</td></tr>';
+      }).join('') + '</tbody></table>' +
+      '<div class="card" style="margin-top:8px;">' + matches.map(c =>
+        '<div class="match' + (c.competitors.some(co => co.athlete && isTrackedName(co.athlete.displayName)) ? ' tracked' : '') + '">' + matchLineHtml(c) + '</div>'
+      ).join('') + '</div>';
+  });
+
+  const order = [];
+  const byLabel = {};
+  knockout.slice().sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(c => {
+    const label = c.round ? c.round.displayName : 'Knockout';
+    if(!byLabel[label]){ byLabel[label] = []; order.push(label); }
+    byLabel[label].push(c);
+  });
+  order.forEach(label => {
+    html += '<div class="grp-title">' + esc(label) + '</div><div class="bracket-list">' +
+      byLabel[label].map(m => bracketMatchHtml(m, seedMap)).join('') + '</div>';
+  });
+  return html;
+}
+function renderFinals(comps, race){
+  const final = comps.find(c => c.round && c.round.displayName === 'Final' && c.status.type.completed && isPlayed(c));
+  const started = comps.some(isPlayed);
+  let status;
+  if(final){
+    const winner = final.competitors.find(c => c.winner);
+    status = '<span class="pill">Completed</span> Champion: <strong>' + (winner && winner.athlete ? esc(winner.athlete.displayName) : '?') + '</strong>';
+  } else if(started){
+    status = '<span class="pill live">In progress</span>';
+  } else {
+    status = '<span class="pill">Upcoming</span>' + (race && race.finalsDates ? '' : ' Mid-November');
+  }
+  let html = '<div class="card"><div class="row-between"><strong>Nitto ATP Finals</strong></div>' +
+    '<div class="small">Turin' + (race && race.finalsDates ? ' · ' + esc(race.finalsDates) : '') + '</div>' +
+    '<div class="match-line">' + status + '</div></div>';
+  if(comps.length){
+    html += renderFinalsGroups(comps);
+  } else {
+    html += '<div class="grp-title">Draw not made yet</div><div class="small" style="margin:0 2px 8px;">The two round-robin groups are drawn just before the tournament. Here is the field so far.</div>';
+    if(race){
+      const alt = race.rows.findIndex(r => r.alternates);
+      html += renderRaceTable(Object.assign({}, race, {rows: alt === -1 ? race.rows : race.rows.slice(0, alt)}));
+    } else {
+      html += '<div class="card error-note">Race to Turin data is not available right now.</div>';
+    }
+  }
+  return html;
+}
+async function loadFinals(){
+  const el = document.getElementById('finalsWrap');
+  try{
+    const [espn, race] = await Promise.all([
+      fetchJson(tennisScoreboardUrl(FINALS_2026.probeDate)).catch(() => null),
+      getRaceData().catch(() => null)
+    ]);
+    const event = espn ? findTournamentEvent(espn, FINALS_2026) : null;
+    const singles = event ? (event.groupings || []).find(g => g.grouping.slug === 'mens-singles') : null;
+    el.innerHTML = renderFinals(mainDrawOnly(singles ? singles.competitions : []), race);
+  }catch(e){
+    setSectionError(el, e.message);
+  }
+}
+
+// ---------- Panels: load only what's on screen ----------
+// Everything here is fetched live and a football season is a lot of JSON, so a
+// panel loads the first time it is shown (and again after a refresh) rather
+// than everything loading up front.
+function refreshRaceIfShown(){
+  return document.getElementById('raceWrap').hidden ? null : loadRace();
+}
+const PANELS = {
+  'football/spain': () => Promise.allSettled([
     loadLeagueClubCards('esp.1', LALIGA_CLUBS, 'laligaClubCards'),
-    loadLeagueClubCards('eng.1', PL_CLUBS, 'plClubCards'),
+    loadLaLigaAll(),
     loadStandingsTable('esp.1', document.getElementById('laligaTableWrap'), LALIGA_CLUBS.map(c => c.id)),
+    loadTopScorers('esp.1', document.getElementById('laligaScorersWrap'))
+  ]),
+  'football/england': () => Promise.allSettled([
+    loadLeagueClubCards('eng.1', PL_CLUBS, 'plClubCards'),
     loadStandingsTable('eng.1', document.getElementById('plTableWrap'), PL_CLUBS.map(c => c.id)),
-    loadTopScorers('esp.1', document.getElementById('laligaScorersWrap')),
-    loadTopScorers('eng.1', document.getElementById('plScorersWrap')),
-    loadUcl(),
-    loadAtpRankings(),
-    loadSlamCards()
-  ]);
-  document.getElementById('footerStatus').textContent = 'Last updated ' + new Date().toLocaleString();
+    loadTopScorers('eng.1', document.getElementById('plScorersWrap'))
+  ]),
+  'football/ucl': () => loadUcl(),
+  'tennis/overview': () => Promise.allSettled([loadPlayerCards(), loadAtpRankings(), refreshRaceIfShown()]),
+  'tennis/slams': () => loadSlamCards(),
+  'tennis/masters': () => loadMastersCards(),
+  'tennis/finals': () => loadFinals()
+};
+const SUBTABS = ['spain', 'england', 'ucl'];
+const TSUBTABS = ['overview', 'slams', 'masters', 'finals'];
+let activeTab = 'football', activeSub = 'spain', activeTsub = 'overview';
+let loadedPanels = {};
+function currentPanelKey(){
+  return activeTab === 'football' ? 'football/' + activeSub : 'tennis/' + activeTsub;
+}
+async function ensurePanel(label){
+  const key = currentPanelKey();
+  const foot = document.getElementById('footerStatus');
+  if(!loadedPanels[key]){
+    foot.textContent = label || 'Loading…';
+    loadedPanels[key] = Promise.resolve(PANELS[key]());
+  }
+  try{ await loadedPanels[key]; }catch(e){}
+  foot.textContent = 'Last updated ' + new Date().toLocaleString();
+}
+// Refresh button: reload what's showing; other panels reload when next opened.
+function loadAll(){
+  loadedPanels = {};
+  soccerCache.clear();
+  raceCache = null;
+  return ensurePanel('Refreshing…');
 }
 
 // ---------- Tabs ----------
-function setActiveTab(tab){
-  document.querySelectorAll('.main-tabs .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  document.getElementById('tab-football').classList.toggle('active', tab === 'football');
-  document.getElementById('tab-tennis').classList.toggle('active', tab === 'tennis');
-  try{ localStorage.setItem('scores.activeTab', tab); }catch(e){}
+function applyTabState(){
+  document.querySelectorAll('.main-tabs .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === activeTab));
+  document.getElementById('tab-football').classList.toggle('active', activeTab === 'football');
+  document.getElementById('tab-tennis').classList.toggle('active', activeTab === 'tennis');
+  document.querySelectorAll('.sub-tabs .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.subtab === activeSub));
+  document.querySelectorAll('.subtab-panel').forEach(p => p.classList.toggle('active', p.id === 'subtab-' + activeSub));
+  document.querySelectorAll('.tennis-subtabs .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tsub === activeTsub));
+  document.querySelectorAll('.tpanel').forEach(p => p.classList.toggle('active', p.id === 'tsub-' + activeTsub));
+  try{
+    localStorage.setItem('scores.activeTab', activeTab);
+    localStorage.setItem('scores.activeSubtab', activeSub);
+    localStorage.setItem('scores.activeTsub', activeTsub);
+  }catch(e){}
 }
-function setActiveSubtab(sub){
-  document.querySelectorAll('.sub-tabs .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.subtab === sub));
-  document.querySelectorAll('.subtab-panel').forEach(p => p.classList.toggle('active', p.id === 'subtab-' + sub));
-  try{ localStorage.setItem('scores.activeSubtab', sub); }catch(e){}
-}
-document.querySelectorAll('.main-tabs .tab-btn').forEach(b => b.addEventListener('click', () => setActiveTab(b.dataset.tab)));
-document.querySelectorAll('.sub-tabs .tab-btn').forEach(b => b.addEventListener('click', () => setActiveSubtab(b.dataset.subtab)));
-let initialTab = 'football', initialSubtab = 'spain';
+document.querySelectorAll('.main-tabs .tab-btn').forEach(b => b.addEventListener('click', () => { activeTab = b.dataset.tab; applyTabState(); ensurePanel(); }));
+document.querySelectorAll('.sub-tabs .tab-btn').forEach(b => b.addEventListener('click', () => { activeSub = b.dataset.subtab; applyTabState(); ensurePanel(); }));
+document.querySelectorAll('.tennis-subtabs .tab-btn').forEach(b => b.addEventListener('click', () => { activeTsub = b.dataset.tsub; applyTabState(); ensurePanel(); }));
 try{
-  initialTab = localStorage.getItem('scores.activeTab') || 'football';
-  initialSubtab = localStorage.getItem('scores.activeSubtab') || 'spain';
+  const t = localStorage.getItem('scores.activeTab');
+  const s = localStorage.getItem('scores.activeSubtab');
+  const ts = localStorage.getItem('scores.activeTsub');
+  if(t === 'football' || t === 'tennis') activeTab = t;
+  if(SUBTABS.includes(s)) activeSub = s;
+  if(TSUBTABS.includes(ts)) activeTsub = ts;
 }catch(e){}
-setActiveTab(initialTab);
-setActiveSubtab(initialSubtab);
-
-loadAll();
+applyTabState();
+ensurePanel();
 </script>
 </body>
 </html>
