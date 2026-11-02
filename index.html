@@ -489,14 +489,24 @@ function fmtDayRange(evs){
   const a = f(ds[0]), b = f(ds[ds.length - 1]);
   return a === b ? a : a + ' – ' + b;
 }
+function soccerNotHappening(e){
+  return /abandon|postpon|cancel|suspend/i.test(e.competitions[0].status.type.description || '');
+}
+// Live, or finished with a kickoff that has actually passed.
+function soccerMatchPlayed(e){
+  const st = e.competitions[0].status.type;
+  if(st.state === 'in') return true;
+  return st.state === 'post' && !soccerNotHappening(e) && new Date(e.date).getTime() <= Date.now() + 3 * 3600 * 1000;
+}
 function matchRowHtml(e, followedIds){
   const comp = e.competitions[0];
   const home = comp.competitors.find(c => c.homeAway === 'home') || comp.competitors[0];
   const away = comp.competitors.find(c => c.homeAway === 'away') || comp.competitors[1];
   const state = comp.status.type.state;
   const tracked = followedIds.includes(home.team.id) || followedIds.includes(away.team.id);
+  const notHappening = soccerNotHappening(e);
   let center, sub = '';
-  if(state === 'pre'){
+  if(state === 'pre' || notHappening){
     const desc = comp.status.type.description;
     center = 'vs';
     sub = (desc && desc !== 'Scheduled' ? esc(desc) + ' · ' : '') + fmtTime(new Date(e.date));
@@ -507,7 +517,7 @@ function matchRowHtml(e, followedIds){
   return '<div class="mrow' + (tracked ? ' tracked' : '') + '">' +
     '<div class="mline"><span class="home">' + teamHtml(home.team) + '</span><span class="score">' + center + '</span><span>' + teamHtml(away.team) + '</span></div>' +
     (sub ? '<div class="msub">' + sub + '</div>' : '') +
-    (state !== 'pre' ? goalLine(comp.details, comp.competitors) : '') +
+    (state !== 'pre' && !notHappening ? goalLine(comp.details, comp.competitors) : '') +
     '</div>';
 }
 async function loadLaLigaAll(){
@@ -528,7 +538,10 @@ async function loadLaLigaAll(){
     const mds = Object.keys(byMd).map(Number).sort((a, b) => a - b);
     // Open on the latest matchday that has any result (or live match) so the
     // scores are what you see first; upcoming fixtures are one tap further.
-    const withResults = mds.filter(md => byMd[md].some(e => e.competitions[0].status.type.state !== 'pre'));
+    // So the picker moves to a new matchday the moment its first game is played.
+    // ESPN also lists matches that never happened (an "Abandoned" one dated
+    // months ahead, say) as finished, so those must not count.
+    const withResults = mds.filter(md => byMd[md].some(soccerMatchPlayed));
     let current = withResults.length ? withResults[withResults.length - 1] : mds[0];
     const followed = LALIGA_CLUBS.map(c => c.id);
     el.innerHTML = '<div class="md-nav"><button class="md-btn" aria-label="Previous matchday">‹</button><select class="md-select"></select><button class="md-btn" aria-label="Next matchday">›</button></div><div class="card md-list"></div>';
